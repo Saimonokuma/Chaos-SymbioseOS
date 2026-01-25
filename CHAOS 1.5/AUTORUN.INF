@@ -1,0 +1,4 @@
+[autorun]
+shellexecute=web\index.htm
+shell\item01\command=explorer web\index.htm
+shell\item01=CHAOS

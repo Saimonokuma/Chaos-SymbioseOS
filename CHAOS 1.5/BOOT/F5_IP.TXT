@@ -1,0 +1,24 @@
+07       CHAOS      CD version 0c1.507      http://midnightcode.org/chaos/
+08              __________                              _,            
+            ."          ".      .--""--.          _.-{__}-._        
+            | .--------. |    .'        '.      .:-'`____`'-:.      
+           /` |________| `\  /   .'``'.   \    /_.-"`_  _`"-._\     
+          |  / / .\/. \ \  ||  .'/.\/.\'.  |  /`   / .\/. \   `\    
+          \_/  \__/\__/  \_/|  : |_/\_| ;  |  |    \__/\__/    |    
+            \            /   \ '.\    /.' / .-\                >/-. 
+            /'._  --  _.'\   /'. `'--'` .'\/   '._-.__--__.-_.'    \ 
+           /_   `""""`   _\ /_  `-./\.-'  _\'.    `""""""""`'`\    ;
+          (_|            |_)_/            \__)|        '           | 
+           `|\__________/|;                  `_________'________`;-'
+             '----------'   '--------------'`--------------------`  
+04                 FIAT         8o88yD1g1t4L         Gobbledok
+07
+If no local automagic IP address configurator exists in your LAN, you can
+manually assign your own IP configuration options through the "ip=" kernel 
+parameter; ip=<client-ip>:<server-ip>:<gw-ip>:<mask>:<name>:<dev>:<PROTO>
+
+boot: /chaos/bzImage root=/dev/ram0 initrd=/chaos/chaos.rdz rw boot=/dev/
+      cdrom:iso9660 ip=192.168.1.37::192.168.1.1:255.255.255.0::: init=/s
+      bin/init SHELL=1 HTTPD=1 SSHD=0 TYD=1
+
+0cF1: 07Main        0cF2: 07About       0cF3: 07HW Req'd   0cF4: 07Boot Opts   0cF6: 07Copyrights

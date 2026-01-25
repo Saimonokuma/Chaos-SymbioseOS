@@ -1,0 +1,762 @@
+<html>
+<head>
+
+<meta http-equiv="Content-Language" content="en">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta http-equiv="Page-Enter" content="revealTrans(Duration=0.25,Transition=22)">
+<meta name="author" content="ITSecurity@MQ">
+<meta name="description" content="CHAOS howto page; How do I use CHAOS?, HowTo, Installation, Usage">
+<meta name="distribution" content="GLOBAL">
+<meta name="generator" content="/bin/vi">
+<meta name="keywords" content="Howto Novell ZENworks John the Ripper openMosix SETI SETI@home cdrom distribution secure IPSEC CHAOS SSI GNU GPL">
+<meta name="language" content="en">
+<meta name="resource-type" content="document">
+<meta name="revisit-after" content="14 DAYS">
+<meta name="robots" content="index,follow">
+
+<title>CHAOS - howto - An openMosix SSI distribution; The supercomputer for your wallet</title>
+
+<style type="text/css">
+
+BODY				{ margin: 0px;
+				  color: #FFFFFF;
+				  font-family: "Verdana", "Tahoma", "Arial", "Helvetica", "Geneva", "sans-serif";
+				  background-color : #000000;
+				  scrollbar-base-color: #211D1C;
+				  scrollbar-arrow-color: #8D7A74; }
+
+A:link				{ color: #F3EFEC;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A:visited			{ color: #F3EFEC;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A:active			{ color: #F3EFEC;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A:hover				{ color: #F3EFEC;
+				  text-decoration: underline;
+				  font-weight: normal; }
+
+TD				{ font-family: "Verdana", "Tahoma", "Arial", "Helvetica", "Geneva", "sans-serif";
+				  font-size: 11px;
+				  background-color: #000000;
+				  color: #E1DCD8 }
+
+TD.title			{ font-family: "Verdana", "Tahoma", "Arial", "Helvetica", "Geneva", "sans-serif";
+				  font-size: 11px;
+				  background-color: #211D1C;
+				  color: #E1DCD8 }
+
+
+A.seti:link			{ color: #CC99FF;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A.seti:visited			{ color: #CC99FF;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A.seti:active			{ color: #CC99FF;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A.seti:hover			{ color: #CC99FF;
+				  text-decoration: underline;
+				  font-weight: normal; }
+
+</style>
+</head>
+<body>
+
+<br><br>
+<center>
+<table width="650" bgcolor="#8D7A74" cellpadding="6" cellspacing="1" border="0" valign="top">
+<tr>
+  <td width="100%" bgcolor="#1C1B19" valign="top" align="left" class="channelquote">
+    <table cellspacing="0" cellpadding="0" border="0" width="100%">
+    <tr>
+      <td>
+
+<table cellspacing="0" cellpadding="2" border="0" width="650">
+<tr><td width="650" colspan="2"><font size="4">CHAOS</font></td></tr>
+<tr><td class="title">Putting it all together</td><td class="title" align="right">[<a href="../index.htm">main</a>] [<a href="../about/index.htm">about</a>] [<a href="../initd/index.htm">initd</a>] [<a href="../crtntyd/index.htm">certaintyd</a>] [<a href="../tyd/index.htm">tyd</a>] [<a href="../net/index.htm">networking</a>] [howto] [<a href="../credits/index.htm">credits</a>]</td></tr>
+<tr><td align="left" colspan="2"><br><br><br>
+
+<font size="2"><i>Reference material</i></font><br><br><br>
+&nbsp; &nbsp; Good, and comprehensive, documentation exists, discussing both the (network)
+security model implemented in CHAOS to protect the SSI, and the secure delpoyment of,
+and interoperability between, the CHAOS and ClusterKnopix distributions;<br><br>
+<ol>
+  <li><a href="http://itsecurity.mq.edu.au/papers/White%20Paper%20-%20Security%20and%20openMosix.pdf">White Paper [pdf/600kb] :: Security and openMosix</a>;<br>Securely deploying SSI cluster technology over untrusted networking infrastructure<br><br></li>
+  <li><a href="http://itsecurity.mq.edu.au/papers/How%20To%20-%20Heterogeneous%20Clusters.pdf">HowTo [pdf/60kb] :: Heterogeneous Clusters</a>;<br>Running ClusterKnoppix as a master node to a CHAOS drone army<br><br></li>
+  <li><a href="http://itsecurity.mq.edu.au/papers/auugss04/">Presentation [html/300k] :: SSI Security</a>;<br>Australian Unix Users Group - Security Symposium 2004<br><br></li>
+  <li>Presentation :: SSI Security</a>;<br>
+ [<a href="http://itsecurity.mq.edu.au/papers/auugss04/SSI-Security-lge.wmv">MediaPlayer/37mb</a>] [<a href="http://itsecurity.mq.edu.au/papers/auugss04/SSI-Security-sml.wmv">MediaPlayer/14mb</a>] [<a href="http://itsecurity.mq.edu.au/papers/auugss04/SSI-Security-lge.rm">RealPlayer/37mb</a>] [<a href="http://itsecurity.mq.edu.au/papers/auugss04/SSI-Security-sml.rm">RealPlayer/5mb</a>] <br>
+Australian Unix Users Group - Security Symposium 2004<br><br></li>
+</ol>
+Professional bodies, including openMosix and Single System Image community members,
+are encouraged to explore this documentation, to grasp firmly the vision and
+methodology behind the collective CHAOS works.<br>
+<br>
+
+<br><br><br>
+<font size="2"><i>For the pragmatists</i></font><br><br><br>
+&nbsp; &nbsp; The documentation below includes a number of brief procedures or
+guides, to assist in deployment, management and/or usage of your CHAOS/openMosix
+cluster.<br>
+<br>
+&nbsp; &nbsp; For information on the distribution itself, its purposes and 
+component software technologies, then please see the appropriate sections of this
+site.<br>
+
+<br><br><br>
+<font size="2"><i>Contents</i></font><br><br>
+<ol>
+  <li><a href="#howto1">HowTo :: Build a supercomputer with a business card from your wallet</a>;<br>
+    <br>A step-by-step guide to get anyone running their first CHAOS/openMosix cluster, from two Intel 586 machines (or better), in under 20 minutes, and without disturbing any existing hard disk OS installation<br>
+    <br>
+    <br>
+  </li>
+  <li><a href="#howto2">HowTo :: Effectively cracking passwords using JtR and SSI technology</a>;<br>
+  <br>The theory and practice behind scaling the popular dictionary-based password cracker, John the Ripper, over large Symmetric Multi-Processor (SMP) machines, or a CHAOS/openMosix cluster<br>
+    <br>
+    <br>
+  </li>
+  <li><a href="#howto3">HowTo :: Massively scaling SETI@home with/without a cluster</a>;<br>
+    <br>A practical guide to scaling Berkeley's <i>Search for Extra-Terrestrial Intelligence</i> software, SETI@home, over large Symmetric Multi-Processor (SMP) machines, or a CHAOS/openMosix cluster<br>
+    <br>
+    <br>
+  </li>
+  <li><a href="#howto4">HowTo :: Deploy a supercomputer nightly with Novell ZENworks (ZFD4)</a>;<br>
+    <br>A step-by-step guide to dynamically deploying a CHAOS/openMosix cluster to desktop PCs/workstsations nightly, from a ZENworks For Desktops installation running on Novell Netware<br>
+    <br>
+    <br>
+  </li>
+</ol>
+<br>
+
+
+<ol>
+
+<br><br><br>
+<a name="howto1">
+<li><font size="2"><i>HowTo :: Build a supercomputer with a business card from your wallet</i></font><br><br><br>
+&nbsp; &nbsp; This document is a good read for those who have not yet constructed
+an openMosix cluster from the CHAOS distribution. What you will learn here, is how to
+construct a distributed processing environment from any of the network connected 
+pentium-grade computers that you already have access too.<br>
+<br>
+&nbsp; &nbsp; It is beyond the scope of this document to convey details on burning CDROM images,
+using unix/linux shell commands, constructing IP networks, or helping you with your homework (that
+includes your thesis).  This document will not go into detail regarding the individual CHAOS OS
+components, these details can already be found amongst the supplied documentation.<br>
+
+
+<br><br><br>
+<font size="2"><i>Prerequisites</i></font><br><br><br>
+&nbsp; &nbsp; You should be familiar with the general administration and operation of
+an openMosix cluster. You should also be familiar with concepts such as IP networking,
+routing, and address management.  And, if you are so inclined, it might be a good idea to
+be a little familiar with linux packet filtering (netfilter). If you are not confident 
+in these areas, then acquire some playtime, Redhat and openMosix RPMs.<br>
+<br>
+&nbsp; &nbsp; It is recommended that you plan your cluster before you set out to install it.  This
+practice will help you to avoid complicated, time consuming and expensive surprises.  Cute
+advice from an OS that professes to build &quot;adhoc&quot; clusters; if it makes you feel
+better, we recommend you do your planning on a napkin that came with your last asian take-out ;-)<br>
+
+
+<br><br><br>
+<font size="2"><i>Let's start already, I just want to get it running ..</i></font><br><br><br>
+&nbsp; &nbsp; Too right!  Life is short and there is no time to waste on sentences like this one!
+To get your cluster running immediately, you will need to perform the following four major steps.<br>
+<br>
+&nbsp; &nbsp; 1. &nbsp; Some minor preparation work must come first;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; Download the CHAOS-1.0 ISO image from the CHAOS web site (&quot;about&quot; has download info)<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; Burn the ISO image to CDROM media (preferrably something cool)<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; Acquire i586 (or better) PCs; each with CDROM drive, ethernet NIC and a console (serial will do)<br>
+<br>
+<br>
+&nbsp; &nbsp; 2. &nbsp; Then, for each PC (node) you can perform the following;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; Ensure that this PC is capable of booting from its CDROM drive (check the BIOS configuration)<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; Boot the node with the CHAOS disc<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; If your LAN has dynamic IP allocation;<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; - &nbsp; Press Enter (optionally; select &quot;n1&quot; if this is the first node)<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; If your LAN is statically allocated;<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; - &nbsp; Press F5 for help (and removing the boot prompt timeout)<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; - &nbsp; Enter the boot command shown, but populate the correct IP detail for this node<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; If the node's hardware is supported then within 24 seconds the CDROM will eject the disc<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; As soon as that disc is ejected, you can repeat the process on the next node using the same disc<br>
+<br>
+<br>
+&nbsp; &nbsp; 4. &nbsp; If your nodes are on differing LANs, then to join the cluster from all bar the first node;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; At the command prompt of the new node, enter; <i>tyd --master 192.168.1.12</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;where 192.168.1.12 is substituted with the IP address of the first node<br>
+<br>
+<br>
+&nbsp; &nbsp; Without any hardware issues, your first cluster should have two nodes running within about 10-15 minutes of
+downloading the CHAOS ISO image.<br>
+
+<br><br><br>
+<font size="2"><i>Erm, I think its working, now what do I do?</i></font><br><br><br>
+&nbsp; &nbsp; If you've followed through the instructions in the previous section, then you
+should have a running cluster. I'm sure that you've already figured out that you now have
+Gigacycles of idle CPU power returning your blank, drooling, stare.  There are two handy
+little applications built into CHAOS that will help demonstrate the power of the openMosix
+cluster that you have at your fingertips;  An openMosix performance monitoring tool and a
+test application.<br>
+<br>
+&nbsp; &nbsp; mosmon - The openMosix performance monitoring tool &quot;mosmon&quot; is
+really useful. Take the time out to play with mosmon, and to experiment with its display
+options. Once you've started mosmon, you should see all of the nodes in your cluster listed
+horizontally, with their respective load graphed vertically.  Every two seconds, each node
+will produce a spike of load as the certaintyd attempts to validate that node's integrity.<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; At the command prompt of any node, enter; <i>mosmon</i><br>
+<br>
+<br>
+&nbsp; &nbsp; testapp - The test application &quot;testapp&quot; is a tiny little
+program with one job; he has 2^32 fingers and toes, and he's going to play &quot;this
+little piggy&quot; until he gets to the end. Don't be concerned. Despite processing
+at millions of piggy's per second, the game won't end before this time tomorrow, some
+years from now ... well ... on commercially available computer equipment anywho. As you
+launch testapp instances you will see a huge load spike on the testapp running node, before
+it manages to offload (migrate) testapp instances to free nodes.<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; At the command prompt of any other node, enter; <i>testapp</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;do this for at least one testapp per node in your cluster<br>
+<br>
+<br>
+&nbsp; &nbsp; When you've finished your little experiment, you can exit mosmon by pressing 'q',
+and you can terminate the testapp instances from the node that they were launched from, using ps 
+and kill (as per regular unix-land tools and practices).<br>
+<br>
+<br>
+</li>
+
+<br><br><br>
+<a name="howto2">
+<li><font size="2"><i>HowTo :: Effectively cracking passwords using JtR and SSI technology</i></font><br><br><br>
+&nbsp; &nbsp; This document is a good read for those security practioners or ICT auditors 
+who have access to an openMosix cluster built from any openMosix enabled distribution. What
+you will learn here, is how to construct a parallel password cracking environment from the
+common password cracker, &quot;John the Ripper&quot; and the SSI cluster that you have
+already constructed.<br>
+<br>
+&nbsp; &nbsp; It is beyond the scope of this document to convey details on using John the
+Ripper, burning CDROM images, using unix/linux shell commands, constructing IP networks, or
+helping you with your homework (that includes your thesis).  This document will not go
+into detail regarding the installation of openMosix, as this detail can already be
+found amongst the community's published documentation.<br>
+<br>
+&nbsp; &nbsp; Note, too, that Cisilia is beyond the scope of this document.  Cisilia has
+been included in CHAOS since CHAOS was CHAOS, but it no longer meets our requirements.<br>
+
+<br><br><br>
+<font size="2"><i>Prerequisites</i></font><br><br><br>
+&nbsp; &nbsp; You should be familiar with the general administration and operation of
+an openMosix cluster and techniques or practices for using John the Ripper (JtR). If you
+are not confident in these areas, then acquire some playtime, a couple of Redhat boxes,
+and the openMosix and JtR RPMs.<br>
+
+<br><br><br>
+<font size="2"><i>Here's one that was prepared earlier</i></font><br><br><br>
+&nbsp; &nbsp; For those without patience for semantics, there are two options
+for you.  The first is &quot;plJohn&quot;; authored by Johnny Cache, plJohn is a perl
+wrapper designed to run JtR in parallel instances, specifically for openMosix clusters
+(see the credits page for a link).  The second is &quot;forkjohn&quot; (Scottish);
+authored by the CHAOS team, forkjohn is the ANSI/C version of plJohn, and is included
+natively in the CHAOS distribution (since version 0.7).  While other software packages
+exist to parallelise JtR, they all seem to alter JtR in one way or another - which
+greatly restricts the user's ability to work with the JtR version s/he chooses.<br>
+
+<br><br><br>
+<font size="2"><i>Why JtR is a special case</i></font><br><br><br>
+&nbsp; &nbsp; A true single system image operating environment would not need any
+magic to make John the Ripper operate in a massively parallel way.  John the Ripper
+can thread instances of itself to take advantage of multiprocessor machines, which
+would work ideally on an SSI.  Unfortunately, openMosix is not a true SSI.  It has
+the ability to manage and migrate fork'd processes, but not threaded ones; threaded
+processes remain locked on their home node.<br>
+<br>
+&nbsp; &nbsp; Therefore, JtR needs to be assisted to take advantage of the
+opportunity to parallel its work load.  What we need to do, is find a way to get
+seperate instances of JtR executed, so that they can migrate, but also to operate
+on the same batch, so that they reduce the over all time taken.<br>
+
+<br><br><br>
+<font size="2"><i>The theory</i></font><br><br><br>
+&nbsp; &nbsp; Fortunately, John the Ripper has some very handy features that can be
+exploited, to obtain the functionality that we require -- and without editing the
+code.<br>
+<br>
+&nbsp; &nbsp; JtR has two key processes that we are interested in; a password 
+feeder and a password encoder/comparer.  The password feeder simply takes a
+dictionary / word file, and dumps it out as a set of words (passwords) for input
+into the encooder/comparer process.  Alternatively, an option can be specified 
+to have the feeder use the supplied dictionary to generate potential passwords
+based on the words and a set of rules.  Either way, the output is a set of plain
+text passwords that are to be tested.  The password encoder/comparer takes the
+password to be attempted, encodes or encrypts it per the designated algorythm,
+and then compares the result to the passwords that are being cracked.<br>
+<br>
+&nbsp; &nbsp; Sneakily enough, in practice the output of the feeder process can be
+redirected into a FIFO pipe.  Then, as many encoder/comparer processes as can be
+handled (probably 1 per processor in the cluster, for maximum effect) can be executed,
+each reading from the FIFO pipe, instead of the dictionary file.  Passwords entered
+into the FIFO will be created faster than they can leave.  Encoder/comparer processes
+will each obtain a new password from the FIFO as it requires one, removing the
+password from the FIFO (preventing duplicated effort) and attempting that password
+against each entry in the file being cracked.<br>
+<br>
+&nbsp; &nbsp; In this way, individual and migratable processes are created, while all
+processes still work collectively on the single task.<br>
+
+<br><br><br>
+<font size="2"><i>How to make it go really really fast</i></font><br><br><br>
+&nbsp; &nbsp; At the command-line then, the theory can be applied in three
+very basic steps (no JtR code was hurt in the creation of this mirage);<br>
+<br>
+&nbsp; &nbsp; 1. &nbsp; Create a FIFO pipe;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; mknod /tmp/pipey p<br>
+<br>
+<br>
+&nbsp; &nbsp; 2. &nbsp; Start the password feeder process;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; Either, the dictionary only;<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; john -session=/tmp/session.rec -stdout -w=/tmp/dictionary.txt &gt; /tmp/pipey &amp;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; Or, the dictionary plus rules;<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; john -session=/tmp/session.rec -stdout -w=/tmp/dictionary.txt -rules &gt; /tmp/pipey &amp;<br>
+<br>
+<br>
+&nbsp; &nbsp; 3. &nbsp; Start n encoder/comparer processes;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; john -session=/tmp/sess-$$.rec -stdin -format=&quot;md5&quot; /tmp/shadow &lt; /tmp/pipey &amp;<br>
+<br>
+<br>
+&nbsp; &nbsp; Note that openMosix's MFS takes care of the translation between
+foreign nodes and the local (home) node when it comes to accessing the
+references that we've made to /tmp (ie. you don't need NFS to pull-off this 
+stunt).<br>
+
+<br><br><br>
+<font size="2"><i>Where do I get dictionaries or word files?</i></font><br><br><br>
+&nbsp; &nbsp; As you will quickly realise, JtR's strength comes from the
+dictionaries that it can access (which is fair, considering that it is a
+dictionary-based attack that you are attempting to perform).<br>
+<br>
+&nbsp; &nbsp; The authors of John the Ripper sell a comprehensive dictionary CDROM 
+that can be ordered from the JtR web site (see the credits page for a link).  None
+of the CHAOS team members have ever seen or used this CD, so we cannot vouch for
+it.<br>
+<br>
+&nbsp; &nbsp; Note that dictionaries and word files can be found all over the internet.
+The CHAOS team have assembled a collection of dictionaries from a hand-full of public
+web sites that offer them openly.  As the average CHAOS consumer will not be using
+CHAOS to create password cracking clusters, this collection has been put together into
+its own CDROM; the &quot;supplemental&quot; disc.<br>
+<br>
+&nbsp; &nbsp; No effort has been made to clean these dictionaries - to remove
+duplicate entries or to consolidate the word files.  No statistical work has been
+done on these dictionaries, to estimate their effectiveness against given 
+populations.  Additionally, some of them are compressed, and will need to be uncompressed before
+they can be used.<br>
+
+<br><br><br>
+<font size="2"><i>Where's JtR and forkjohn in CHAOS-1.0?</i></font><br><br><br>
+&nbsp; &nbsp; CHAOS-1.0 took a harder line on the slave/compute nodes, and removed all
+usable non-slave software.  Keep checking the CHAOS web site for a small image that will
+be able to be added to a USB device, and plugged into a running CHAOS node, to add the
+missing security software to the cluster.<br> 
+
+<br><br><br>
+<font size="2"><i>No kitty, its a bad kitty!</i></font><br><br><br>
+&nbsp; &nbsp; Remember, the difference between a professional and a hacker is permission.<br>
+
+<br>
+<br>
+<br>
+</li>
+
+
+<br><br><br>
+<a name="howto3">
+<li><font size="2"><i>HowTo :: Massively scaling SETI@home with/without a cluster</i></font><br><br><br>
+&nbsp; &nbsp; This document is a written for those who are interested in the Berkeley
+SET@home project, who may be looking for a very simple and/or temporary way to contribute
+to this community project.  What you will learn here is how to construct a SET@home 
+multi-workunit processing environment from the CHAOS distribution and the text-based
+setiathome binary that is available via the SETI@home project site.<br>
+<br>
+&nbsp; &nbsp; It is beyond the scope of this document to convey details on burning CDROM
+images, using unix/linux shell commands, constructing IP networks, or helping you with
+your homework (that includes your thesis).  This document will not go into detail
+regarding the installation of openMosix, as this detail can already be found amongst the
+community's published documentation.<br>
+
+<br><br><br>
+<font size="2"><i>Prerequisites</i></font><br><br><br>
+&nbsp; &nbsp; You should be familiar with the general administration and operation of
+an openMosix cluster and vaguely familiar with the ins and outs of the SETI@home software.
+If you are not confident in these areas, then acquire some playtime, a couple of Redhat boxes,
+and the openMosix and SETI@home RPMs.<br>
+
+<br><br><br>
+<font size="2"><i>The theory</i></font><br><br><br>
+&nbsp; &nbsp; SETI@home is a single threaded binary-distributed application, that
+operates by obtaining a chunk of data (work unit) from a Berkeley server, processing
+it for a few hours, then sending a summary (result) back.  By its own design, the
+SETI@home application &quot;setiathome&quot; is not able to be sped up by anything other
+than faster CPUs.  Symmetric Multi-Processing (SMP) and Single System Image
+(SSI -- or the openMosix version of it) clustering techniques are not going to
+reduce the processing time required by any one setiathome process because it is
+not, natively, a parallel process.<br>
+<br>
+&nbsp; &nbsp; Instead, additional output (overall perceived performance) can be
+gained by running multiple setiathome instances, simultaneously.  And, there 
+re two ways to achieve this, with CHAOS.<br>
+
+<br><br><br>
+<font size="2"><i>Launching SETI@home on standalone machines</i></font><br><br><br>
+&nbsp; &nbsp; From CHAOS 1.0, the boot media is able to launch a dedicated SETI@home
+node configuration.  This configuration automatically removes all unnecessary services
+and adds the appropriate packet filtering, specifically for the SETI@home service.
+To boot a new SETI@home host, you need to perform the following basic steps.<br>
+<br>
+&nbsp; &nbsp; 1. &nbsp; Some minor preparation work must come first;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; Download the latest CHAOS ISO image from the CHAOS web site (&quot;about&quot; has download info)<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; Burn the ISO image to CDROM media (preferrably something cool)<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; Acquire i586 (or better) PCs; each with CDROM drive, ethernet NIC and a console (serial will do)<br>
+<br>
+&nbsp; &nbsp; 2. &nbsp; Then, for each PC (host) you can perform the following;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; Ensure that this PC is capable of booting from its CDROM drive (check the BIOS configuration)<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; Boot the host with the CHAOS disc<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; If your LAN has dynamic IP allocation;<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; - &nbsp; Enter the boot option &quot;s1&quot;<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; If your LAN is statically allocated;<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; - &nbsp; Press F5 for help (and removing the boot prompt timeout)<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; - &nbsp; Enter the boot command shown, but populate the correct IP detail for this host<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; - &nbsp; At the end of the boot command, replace &quot;TYD=1&quot; with &quot;SETI=1&quot;<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; If the host's hardware is supported then within 19 seconds the CDROM will eject the disc<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; As soon as that disc is ejected, you can repeat the process on another computer<br>
+<br>
+<br>
+&nbsp; &nbsp; The SETI@home client should immediately begin.  In fact, one instance of SETI@home will be launched, per 
+CPU found on the host it was started from.  The SETI@home output has been verbosed and then sanitised to give you an
+indication of where the host may be up to at any given point in time.<br>
+<br>
+&nbsp; &nbsp; An installation of this type has been trialled successfully on site.  A
+<a href="http://itsecurity.mq.edu.au/chaos/howto/setilab.htm">photo series has been published</a>, demonstrating the success
+of this technique.<br>
+
+<br><br><br>
+<font size="2"><i>Launchnig SETI@home on a cluster</i></font><br><br><br>
+&nbsp; &nbsp; See the HowTo above, entitled <i>Build a supercomputer with a business card
+from your wallet</i>, and build yourself a homogeneous CHAOS 1.0 based cluster.  Then
+simply perform the following on your head node.<br>
+<br>
+&nbsp; &nbsp; 1. &nbsp; Launch one SETI@home instance per CPU (eg; 30 nodes of 2 CPUs each = 60)<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o &nbsp; /usr/bin/mseti 60<br>
+<br>
+<br>
+&nbsp; &nbsp; The desired number of SETI@home instances should begin, and migrate as required.  The
+SETI@home output has been verbosed and then sanitised to give you an indication of where the
+cluster may be up to at any given point in time.<br>
+<br>
+&nbsp; &nbsp; Be aware that you are running from RAM, and that your RAMFS is of fixed size (around
+12Mbytes).  Each instance of SETI@home will require about 500Kbytes of space.<br>
+
+<br><br><br>
+<font size="2"><i>How many woo's has CHAOS contributed?</i></font><br><br><br>
+&nbsp; &nbsp; The openMosix community maintains their own SETI@home group, within
+the Berkeley project itself (see the openMosix community site for details).  CHAOS
+is distributed with the user "CHAOS" pre-configured.  The CHAOS user is registered
+to the openMosix group, and those group statistics are mirrored online, at the 
+<a href="http://itsecurity.mq.edu.au/chaos/howto/setistats.htm" class="seti">CHAOS openMosix SETI@home stats</a>
+page, along with copies of the certificates that the CHAOS user has attained.<br>
+
+<br>
+<br>
+<br>
+</li>
+
+<br><br><br>
+<a name="howto4">
+<li><font size="2"><i>HowTo :: Deploy a supercomputer nightly with Novell ZENworks (ZFD4)</i></font><br><br><br>
+&nbsp; &nbsp; This document is a written for those who have an existing investment in
+Novell Netware, and Novell's desktop management system - ZENworks (ZenForDesktops 4 or
+ZFD4).  Anyone currently operating ZFD4 will be familiar with the concepts required 
+for this process.<br>
+<br>
+&nbsp; &nbsp; It is beyond the scope of this document to convey details on burning CDROM
+images, using unix/linux shell commands, constructing IP networks, configuring or
+operating Novell servers, or helping you with your homework (that includes your thesis).
+This document will not go into detail regarding the installation of openMosix, as this
+detail can already be found amongst the community's published documentation.<br>
+
+<br><br><br>
+<font size="2"><i>Prerequisites</i></font><br><br><br>
+&nbsp; &nbsp; You should be familiar with the general administration and operation of
+Novell Netware, ZENworks (ZenForDesktops4), and an openMosix cluster, and vaguely
+familiar with the ins and outs of the PXE/Intel network boot process.  If you are not
+confident in these areas, then acquire some playtime, Netware and a couple of PCs,
+and/or maybe RedHat with the openMosix RPMs.<br>
+<br>
+&nbsp; &nbsp; The ZENworks PXE boot file <i>pxe-zfd4.cfg</i>, mentioned later in this
+article, was first publically released in CHAOS-1.4.<br>
+
+<br><br><br>
+<font size="2"><i>The theory</i></font><br><br><br>
+&nbsp; &nbsp; Organisations large enough to run Novell Netware, particularly with 
+the ZFD4 management tool-suite, are highly likely to have a large and under-utilised
+desktop PC environment that is available for clustering for up to 16 hours per day.<br>
+<br>
+&nbsp; &nbsp; What many LAN Administrators may not be aware of, is the ease and
+relative security with which a cluster can be deployed and removed each day,
+whilst leaving the PC workstation resource unharmed.  Additionally, it is not
+immediately obvious as to how ZFD4 will aid in the dynamic deployment of a night
+time super-computer environment; but it is easier than you think.<br>
+<br>
+&nbsp; &nbsp; All of the software that you will require is included in either
+ZFD4 or is on the CHAOS cdrom.<br>
+
+<br><br><br>
+<font size="2"><i>Teaching ZENworks For Desktops new tricks (woof)</i></font><br><br><br>
+&nbsp; &nbsp; The following process will disable the normal ZFD4 menu that 
+appears on the workstation at boot time, and replace it with the instant
+CHAOS loader.  Look further down in this section to see how to revert the 
+process.  A later revision of this HowTo will document the automation of
+the conversion of ZFD4, such that it is automatically scheduled each day.<br>
+<br>
+
+&nbsp; &nbsp; If ZFD4 is installed and operating correctly, then on the Netware
+server's SYSTEM volume, there will be a TFTP directory;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp;\\server\sys\TFTP\<br>
+<br>
+&nbsp; &nbsp; If this directory does not exist then stop now as ZFD4 is not
+installed or not installed correctly.  The TFTP directory contains all of 
+the files that ZFD4 will use to transact between the remote desktop computers
+and the local server.<br> 
+<br>
+&nbsp; &nbsp; The first file ZFD4 serves to the remote rebooting desktop 
+computer is \\server\sys\TFTP\DINIC.SYS &nbsp; DINIC.SYS is the pre-menu
+boot file that is used to collect and convey workstation-specific 
+information that ZFD4 then uses for Imaging.<br>
+<br>
+<br>
+&nbsp; &nbsp; To configure ZFD4 for CHAOS net booting (Nb: all instructions
+are oriented for working in the directory \\server\sys\TFTP\), then;<br>
+<br>
+&nbsp; &nbsp; 1. &nbsp; Backup Novell's DINIC.SYS;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  copy DINIC.SYS DINIC.SYS.novell<br><br>
+<br>
+&nbsp; &nbsp; 2. &nbsp; Install CHAOS' DINIC.SYS;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  copy [cdrom]:\boot\pxelinux.0 DINIC.SYS.chaos<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  copy DINIC.SYS.chaos DINIC.SYS<br><br>
+<br>
+&nbsp; &nbsp; 3. &nbsp; Add CHAOS boot files;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  mkdir pxelinux.cfg<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  copy [cdrom]:\boot\pxe-zfd4.cfg pxelinux.cfg\default<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  copy [cdrom]:\boot\*.txt pxelinux.cfg\<br><br>
+<br>
+&nbsp; &nbsp; 4. &nbsp; Add CHAOS Operating System files;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  mkdir chaos<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  copy [cdrom]:\chaos\*.* chaos\<br><br>
+<br>
+&nbsp; &nbsp; If you have been successful, then the next net-booted workstation
+will display the CHAOS PXE splash screen, at the step usually reserved for the 
+ZFD4 PC boot menu.<br>
+<br>
+&nbsp; &nbsp; To return the configuration of ZFD4 to its orginal operation (Nb: all instructions
+are oriented for working in the directory \\server\sys\TFTP\), then;<br>
+<br>
+&nbsp; &nbsp; 1. &nbsp; Restore Novell's DINIC.SYS;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  copy DINIC.SYS.novell DINIC.SYS<br><br>
+<br>
+&nbsp; &nbsp; Note that the switching of DINIC.SYS (between CHAOS' and Novell's)
+will determine which function is performed by the net-booting workstations.<br>
+
+<br><br><br>
+<font size="2"><i>Automating ZFD4 Network Boot Service Switching</i></font><br><br><br>
+&nbsp; &nbsp; The Novell Toolbox software package (see Credits for URL) allows
+DOS/Unix command-line-type commands to be executed on a Netware server.  Follow
+the documentation to install the Toolbox package, before proceding.  Once the Toolbox
+is running (toolbox.nlm) it should be possible to execute commands, such as
+<i>dir</i> on the Netware console.<br>
+<br>
+&nbsp; &nbsp; In the following procedure, the Netware server will be configured to
+automatically manage the workstation boot process. Once completed, the ZFD4 boot
+environment will be alternated with the CHAOS boot environment each day, such
+that the normal ZENworks boot process will run between 7am and 7pm, while the
+CHAOS boot process will run between 7pm and 7am.<br>
+<br>
+&nbsp; &nbsp; To automate the Win-to-CHAOS and CHAOS-to-Win process perform the
+following, at the Netware console;<br>
+<br>
+&nbsp; &nbsp; 1. &nbsp; Create <i>chaoson.ncf</i>;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Run <i>edit chaoson.ncf</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Add <i>cp sys:tftp\DINIC.SYS.chaos sys:tftp\DINIC.SYS</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Escape and save on exit<br><br>
+<br>
+&nbsp; &nbsp; 2. &nbsp; Create <i>chaosoff.ncf</i>;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Run <i>edit chaosoff.ncf</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Add <i>cp sys:tftp\DINIC.SYS.novell sys:tftp\DINIC.SYS</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Escape and save on exit<br><br>
+<br>
+&nbsp; &nbsp; 3. &nbsp; Modify the <i>crontab</i>;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Run <i>edit crontab</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Add the line <i>0&nbsp;&nbsp;19&nbsp;&nbsp;*&nbsp;&nbsp;*&nbsp;&nbsp;*&nbsp;&nbsp;chaoson.ncf</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Add the line <i>0&nbsp;&nbsp;7&nbsp;&nbsp;&nbsp;*&nbsp;&nbsp;*&nbsp;&nbsp;*&nbsp;&nbsp;chaosoff.ncf</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Escape and save on exit<br><br>
+<br>
+&nbsp; &nbsp; Workstations that are configured to PXE/net-boot will pick up
+the current DINIC.SYS, and behave appropriately.<br>
+
+<br><br><br>
+<font size="2"><i>Automating Win-to-CHAOS Booting</i></font><br><br><br>
+&nbsp; &nbsp;  The following procedure documents the process for scheduling
+an automated Windows workstation reboot, to get workstations to consult ZFD4
+for the currently preferred boot process (CHAOS or Windows).  Note that the
+Policy that is about to be created, will run <i>ipconfig</i> (an arbitrary
+short-lived process) and shutdown the host, once completed;<br>
+<br>
+&nbsp; &nbsp; 1. &nbsp; Create a Policy;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Open <i>ConsoleOne</i> (get coffee)<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  In the container where your existing policies are, create a new <i>Policy Package</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Select <i>Workstation Package</i> and click <i>Next</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Name the Policy Package <i>Scheduled Reboot</i> and click <i>Next</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Click <i>Finish</i><br><br>
+<br>
+&nbsp; &nbsp; 2. &nbsp; Edit the Policy;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Double-click the policy <i>Scheduled Reboot</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Click <i>Add</i> to display the <i>Add Policy</i> dialog<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Enter the policy name <i>Reboot</i> and click <i>Ok</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Click <i>Properties</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Click <i>Add</i> to display the <i>Item Properties</i> dialog<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Enter the name <i>ipconfig.exe</i> and click <i>Ok</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Click <i>Ok</i> on the <i>Properties of Scheduled Reboot:Reboot</i> dialog<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Click <i>Edit</i> to display the <i>Edit Policy Package Schedule</i> dialog<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Select the reboot time as desired, each day at 7pm, for example<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Uncheck the <i>Randomly dispatch policy during time period</i> option<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Click <i>Advanced Settings</i> to display the <i>Advanced Schedule</i> dialog<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Check the <i>Reboot after completion</i> option<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Click <i>Ok</i> on the <i>Advanced Schedule</i> dialog<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Click <i>Ok</i> on the <i>Edit Policy Package Schedule</i> dialog<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Click the <i>Associations</i> tab<br> 
+&nbsp; &nbsp; &nbsp; &nbsp; o  Click <i>Add</i> to display the <i>Select Objects</i> dialog<br> 
+&nbsp; &nbsp; &nbsp; &nbsp; o  Select all of the Workstations that you would like to have rebooted<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Click <i>Ok</i> on the <i>Select Objects</i> dialog<br> 
+&nbsp; &nbsp; &nbsp; &nbsp; o  Click <i>Ok</i> on the <i>Properties of Scheduled Reboot:Reboot</i> dialog<br><br>
+<br>
+&nbsp; &nbsp; Workstations that are logged in will have their applications
+terminated and will be forced to reboot.  Workstations waiting at the ctrl-alt-del
+login screen will reboot as scheduled.<br>
+
+<br><br><br>
+<font size="2"><i>Automating CHAOS-to-Win Booting</i></font><br><br><br>
+&nbsp; &nbsp;  The following procedure documents the process for scheduling
+an automated CHAOS node reboot, to get workstations to consult ZFD4
+for the currently preferred boot process (CHAOS or Windows).  Note that
+a pre-requisite of this process, is the CHAOS boot option <i>HTTPD=2</i>
+which enables the CHAOS web-based reboot facility (in the 
+<i>pxe-zfd4.cfg</i>).  Additionally, the two paramaters to the script are
+the start and end IP addresses for the range used by the CHAOS-booted
+workstations;<br>
+
+<br>
+&nbsp; &nbsp; 1. &nbsp; Create <i>/usr/local/bin/chaos-reboot.sh</i>;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Mount the CHAOS CDROM <i>mount /dev/cdrom /mnt/cdrom</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Copy the script <i>cp /mnt/cdrom/web/howto/reboot.txt /usr/local/bin/chaos-reboot.sh</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Unmount the CHAOS CDROM <i>umount /mnt/cdrom</i><br><br>
+<br>
+&nbsp; &nbsp; 2. &nbsp; Modify the <i>crontab</i>;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Run <i>crontab -e</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  <i>I</i>nsert <i>0&nbsp;&nbsp;7&nbsp;&nbsp;&nbsp;*&nbsp;&nbsp;*&nbsp;&nbsp;*&nbsp;&nbsp;/usr/local/bin/chaos-reboot.sh 192.168.1.100 192.168.1.130</i><br>
+&nbsp; &nbsp; &nbsp; &nbsp; o  Escape and <i>:wq</i><br><br>
+<br>
+&nbsp; &nbsp; While the <a href="reboot.txt">reboot.txt</a> script has been developed for a bash 
+shelled unix host, it could be adapted for Windows batch script, though not for Novell.<br>
+
+<br><br><br>
+<font size="2"><i>Can't CHAOS be better integrated into ZFD4?</i></font><br><br><br>
+&nbsp; &nbsp; An early attempt was made to adapt CHAOS to work natively within
+the Novell ZFD (ZENworks For Desktops) agent, so that the labs could be
+booted automagically, using the Netware SOE management tools.<br>
+<br>
+&nbsp; &nbsp; However, Novell took the strange route of having ZENworks net-boot
+a workstation to DR-DOS, to use loadlin to boot to Linux, to perform the 
+disk-level work required, in an early ZFD4.  Unfortunately, the DR-DOS
+ramdisk was too small and limitations on the native loadlin were such 
+that CHAOS was unable to be loaded as the result of a ZENworks menu selection.<br>
+<br>
+&nbsp; &nbsp; Dazed and confused by first contact with the young ZFD4, by 
+the time patches for ZFD4 came around, the CHAOS team had already decided 
+to treat ZFD as an expensive DHCP and TFTP server for the managed LAN.  The
+resultant procedure can be found above.<br>
+
+<br><br><br>
+<font size="2"><i>Has this been used in production anywhere before?</i></font><br><br><br>
+&nbsp; &nbsp; Macquarie University has tested this deployment amongst one of its
+production ZFD4 SOE environments in one of the resident business colleges.  This
+particular college runs approximately 180 computers in six labs of about 30 
+Compaq EVO workstations (1 x P4 @ 2.4Ghz), each running Windows 2000.<br>
+<br>
+
+</li>
+</ol>
+<br>
+
+</td></tr>
+</table> 
+
+      </td>
+    </tr>
+    </table>						
+  </td>
+</tr>
+</table>
+</center>
+<br><br>
+
+<script language="Javascript">
+  /* This seems to fix the audio repeat on mouse-over in the
+     Opera browser, which was irritating as all hell ..       */
+  var noise = "howto.wav";
+  if(location.href.substring(0, 28) == 'http://itsecurity.mq.edu.au/') {
+    if(navigator.appName == "Microsoft Internet Explorer")
+      document.writeln ('<bgsound src="' + noise + '" hidden="true" autostart="true" loop="false">');
+    else if (navigator.appName == "Netscape")
+      document.writeln ('<embed src="' + noise + '" hidden="true" autostart="true" loop="false">');
+  }
+</script>
+<noscript>
+  <bgsound src="howto.wav" hidden="true" autostart="true" loop="false">
+</noscript>
+
+</body>
+</html>

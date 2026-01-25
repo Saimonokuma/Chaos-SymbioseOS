@@ -1,0 +1,160 @@
+
+# primary variables
+
+start="${1}"
+finish="${2}"
+action="${3}"
+user="operator"
+pass="wellsandlake"
+
+
+# function for erroring out
+
+help() {
+  echo "Usage: ${0} [start-ip] [end-ip] [[action]]"
+  exit 1
+}
+
+
+# validate start and finish
+
+if [ "${start}x" == "x" -o "${finish}x" == "x" -o ${#} -lt 2 ]
+then
+  echo "Error: missing argument!"
+  help
+fi
+
+
+# default action to reboot, if not shutdown
+
+if [ "${action}" != "shutdown" ]
+then
+  action="reboot"
+else
+  action="powoff"
+fi
+
+
+# break down into integers
+
+sa="`echo ${start} | cut -f1 -d\.`"
+sb="`echo ${start} | cut -f2 -d\.`"
+sc="`echo ${start} | cut -f3 -d\.`"
+sd="`echo ${start} | cut -f4 -d\.`"
+
+if [ "${sa}x" == "x" -o "${sb}x" == "x" -o "${sc}x" == "x" -o "${sd}x" == "x" ]
+then
+  echo "Error: start-ip [${sa}.${sb}.${sc}.${sd}] is an invalid address!"
+  help
+fi
+
+
+fa="`echo ${finish} | cut -f1 -d\.`"
+fb="`echo ${finish} | cut -f2 -d\.`"
+fc="`echo ${finish} | cut -f3 -d\.`"
+fd="`echo ${finish} | cut -f4 -d\.`"
+
+if [ "${fa}x" == "x" -o "${fb}x" == "x" -o "${fc}x" == "x" -o "${fd}x" == "x" ]
+then
+  echo "Error: end-ip [${fa}.${fb}.${fc}.${fd}] is an invalid address!"
+  help
+fi
+
+
+# validate integers
+
+help=1
+if [ ${fa} -gt ${sa} ]
+then
+  help=0
+else
+  if [ ${fa} -eq ${sa} ]
+  then
+    if [ ${fb} -gt ${sb} ]
+    then
+      help=0
+    else
+      if [ ${fb} -eq ${sb} ]
+      then
+        if [ ${fc} -gt ${sc} ]
+        then
+          help=0
+        else
+          if [ ${fc} -eq ${sc} ]
+          then
+            if [ ${fd} -gt ${sd} ]
+            then
+              help=0
+            else
+              if [ ${fd} -eq  ${sd} ]
+              then
+                help=0
+              fi
+            fi
+          fi
+        fi
+      fi
+    fi
+  fi
+fi
+
+if [ ${help} -eq 1 ]
+then
+  echo "Error: start-ip is larger than end-ip!"
+  help
+fi
+
+
+# function to evaluate completion
+
+doneall() {
+  if [ "${sa}.${sb}.${sc}.${sd}" == "${fa}.${fb}.${fc}.${fd}" ]
+  then
+    return 1
+  fi
+  return 0
+}
+
+
+# function to request action page from active address
+
+getpage() {
+  wget --quiet \
+       --timeout=2 --wait=0 --waitretry=0 --tries=1 \
+       --http-user=${user} --http-passwd=${pass} \
+       http://${sa}.${sb}.${sc}.${sd}/admin/${action}.cgi
+  return 0
+}
+
+
+# loop from start to finish
+
+fin=0
+while [ ${sa} -lt 256 -a ${fin} -eq 0 ]
+do
+  while [ ${sb} -lt 256 -a ${fin} -eq 0 ]
+  do
+    while [ ${sc} -lt 256 -a ${fin} -eq 0 ]
+    do
+      while [ ${sd} -lt 256 -a ${fin} -eq 0 ]
+      do
+        getpage
+        doneall
+        if [ ${?} -eq 1 ]
+        then
+          fin=1
+        fi
+        sd=$(( ${sd} + 1 ))
+      done
+      sd=0
+      sc=$(( ${sc} + 1 ))
+    done
+    sc=0
+    sb=$(( ${sb} + 1 ))
+  done
+  sb=0
+  sa=$(( ${sa} + 1 ))
+done
+
+exit 0
+

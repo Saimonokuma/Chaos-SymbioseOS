@@ -1,0 +1,24 @@
+07       CHAOS      CD version 0c1.507      http://midnightcode.org/chaos/
+08              __________                              _,            
+            ."          ".      .--""--.          _.-{__}-._        
+            | .--------. |    .'        '.      .:-'`____`'-:.      
+           /` |________| `\  /   .'``'.   \    /_.-"`_  _`"-._\     
+          |  / / .\/. \ \  ||  .'/.\/.\'.  |  /`   / .\/. \   `\    
+          \_/  \__/\__/  \_/|  : |_/\_| ;  |  |    \__/\__/    |    
+            \            /   \ '.\    /.' / .-\                >/-. 
+            /'._  --  _.'\   /'. `'--'` .'\/   '._-.__--__.-_.'    \ 
+           /_   `""""`   _\ /_  `-./\.-'  _\'.    `""""""""`'`\    ;
+          (_|            |_)_/            \__)|        '           | 
+           `|\__________/|;                  `_________'________`;-'
+             '----------'   '--------------'`--------------------`  
+04                 FIAT         8o88yD1g1t4L         Gobbledok
+07
+CHAOS requires an i586 (or higher) PC-compatible system with an IDE or PCI
+SCSI CD-ROM drive, and 64 megabytes of RAM.  A VGA card is recommended.  To 
+boot from CD, the BIOS must support the El Torito standard.
+
+We support common PCI or ISA hardware;  we may not support every device!
+
+
+
+0cF1: 07Main        0cF2: 07About       0cF4: 07Boot Opts  0cF5: 07IP Opts     0cF6: 07Copyrights

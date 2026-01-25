@@ -1,0 +1,331 @@
+<html>
+<head>
+
+<meta http-equiv="Content-Language" content="en">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta http-equiv="Page-Enter" content="revealTrans(Duration=0.25,Transition=22)">
+<meta name="author" content="ITSecurity@MQ">
+<meta name="description" content="CHAOS tyd page; What is tyd?, How does tyd work?">
+<meta name="distribution" content="GLOBAL">
+<meta name="generator" content="/bin/vi">
+<meta name="keywords" content="Tyd omdiscd discovery openMosix Linux bootable business card cdrom distribution secure IPSEC CHAOS SSI crypto 3DES GNU GPL">
+<meta name="language" content="en">
+<meta name="resource-type" content="document">
+<meta name="revisit-after" content="14 DAYS">
+<meta name="robots" content="index,follow">
+
+<title>CHAOS - tyd - An openMosix SSI distribution; The supercomputer for your wallet</title>
+
+<style type="text/css">
+
+BODY				{ margin: 0px;
+				  color: #FFFFFF;
+				  font-family: "Verdana", "Tahoma", "Arial", "Helvetica", "Geneva", "sans-serif";
+				  background-color : #000000;
+				  scrollbar-base-color: #211D1C;
+				  scrollbar-arrow-color: #8D7A74; }
+
+A:link				{ color: #F3EFEC;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A:visited			{ color: #F3EFEC;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A:active			{ color: #F3EFEC;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A:hover				{ color: #F3EFEC;
+				  text-decoration: underline;
+				  font-weight: normal; }
+
+TD				{ font-family: "Verdana", "Tahoma", "Arial", "Helvetica", "Geneva", "sans-serif";
+				  font-size: 11px;
+				  background-color: #000000;
+				  color: #E1DCD8 }
+
+TD.title			{ font-family: "Verdana", "Tahoma", "Arial", "Helvetica", "Geneva", "sans-serif";
+				  font-size: 11px;
+				  background-color: #211D1C;
+				  color: #E1DCD8 }
+</style>
+</head>
+<body>
+
+<br><br>
+<center>
+<table width="650" bgcolor="#8D7A74" cellpadding="6" cellspacing="1" border="0" valign="top">
+<tr>
+  <td width="100%" bgcolor="#1C1B19" valign="top" align="left" class="channelquote">
+    <table cellspacing="0" cellpadding="0" border="0" width="100%">
+    <tr>
+      <td>
+
+<table cellspacing="0" cellpadding="2" border="0" width="650">
+<tr><td width="650" colspan="2"><font size="4">CHAOS</font></td></tr>
+<tr><td class="title">Terrence and Phillip Protocol</td><td class="title" align="right">[<a href="../index.htm">main</a>] [<a href="../about/index.htm">about</a>] [<a href="../initd/index.htm">initd</a>] [<a href="../crtntyd/index.htm">certaintyd</a>] [tyd] [<a href="../net/index.htm">networking</a>] [<a href="../howto/index.htm">howto</a>] [<a href="../credits/index.htm">credits</a>]</td></tr>
+<tr><td align="left" colspan="2"><br><br><br>
+<font size="2"><i>What is &quot;tyd&quot;?</i></font><br><br><br>
+&nbsp; &nbsp; The CHAOS auto discovery daemon is called &quot;tyd&quot; -  pronounced 
+&quot;tie-dee&quot; (like &quot;tidy&quot;).  It is an implementation of the TNP protocol, 
+through a brutally butchered omdiscd source framework; it is a single process/single thread
+binary that operates as both client and server in the TNP process.  Tyd can be exectuted from
+/sbin/tyd on a running CHAOS node.<br>
+
+<br><br><br>
+<font size="2"><i>How does it work?</i></font><br><br><br>
+&nbsp; &nbsp; Tyd has two components, Terrence and Phillip.  Terrence acts as a client, 
+interrogating Phillip, the server.  On the first node in a cluster, Tyd is executed without
+any paramaters, forcing it to run without Terrence; we'll come back to Phillip later.  On every
+other node, Tyd is executed with one paramater; an IP address for another node.  Tyd can now tell
+Terrence where one Phillip is.  Terrence connects to Phillip and, once they have met and exchanged
+their <a href="http://itsecurity.mq.edu.au/chaos/tyd/hello.wav">formal greeting</a>, Terrence begins to interrogate Phillip.<br>
+<br>
+&nbsp; &nbsp; Terrence is going to be busy for a little while.  First, he 
+<a href="http://itsecurity.mq.edu.au/chaos/tyd/mapme.wav">retrieves the mosix map</a> from the Phillip he was told about; he updates the
+local CHAOS node with this map.  Then, he connects to every Phillip in the map (cluster), one by one,
+starting with the first (lowest numbered node-id) and moving through to the last.  As he visits each
+Phillip, Terrence <a href="http://itsecurity.mq.edu.au/chaos/tyd/addme.wav">asks him to add</a> the new CHAOS node to his own map.  Phillip
+does this, and returning the current total number of nodes to Terrence.  If the total number of
+nodes that a given Phillip knows about, is more than the total number of nodes Terrence is expecting,
+then Terrence has been passed by another Terrence; he aborts his cluster addition interrogation, and
+starts again - asking the first node for a new map.<br>
+<br>
+&nbsp; &nbsp; Phillip, relatively speaking, has a much easier job.  Once Terrence has been successful
+in joining the cluster (map) he goes away, leaving a Phillip in place on the new CHAOS node.  This
+Phillip is like all or any other; contains a map of the entire cluster, is ready to serve maps to a
+passing Terrence, and to add new Terrences as they occur.<br>
+
+<br><br><br>
+<font size="2"><i>That's a lot of verbage, any ASCII art?</i></font><br><br><br>
+<pre>
+/*
+ *    tnp proto
+ *
+ *        port 3278/tcp
+ *
+ *        hello
+ *
+ *          [t] -------> [p]  "let's look for treasure!"                (hello,)
+ *          [t] <------- [p]  "yes, let's look for treasure!"           (hello.)  <a href="http://itsecurity.mq.edu.au/chaos/tyd/hello.wav">c(</a>
+ *
+ *
+ *        interrogate - map
+ *
+ *          [t] -------> [p]  "aaaahahahaha .. spattered your face!"    (map me)  <a href="http://itsecurity.mq.edu.au/chaos/tyd/mapme.wav">c(</a>
+ *          [t] <------- [p]  [map_count][map data] - close
+ *
+ *
+ *        interrogate - getpubkey
+ *
+ *          [t] -------> [p]  "get_ssh_pub_key"                         (add me)  <a href="http://itsecurity.mq.edu.au/chaos/tyd/addme.wav">c(</a>
+ *          [t] <------- [p]  [rsa key ent]
+ *          [t] -------> [p]  "get_ssh_pub_key_ack"
+ *          [t] <------- [p]  [dsa key ent]
+ *          [t] -------> [p]  "get_ssh_pub_key_ack"
+ *
+ *        interrogate - setpubkey
+ *
+ *          [t] -------> [p]  "set_ssh_pub_key"                         (add me)  <a href="http://itsecurity.mq.edu.au/chaos/tyd/addme.wav">c(</a>
+ *          [t] <------- [p]  "set_ssh_pub_key_ack"
+ *          [t] -------> [p]  [rsa key ent]
+ *          [t] <------- [p]  "set_ssh_pub_key_ack"
+ *          [t] -------> [p]  [dsa key ent]
+ *          [t] <------- [p]  "set_ssh_pub_key_ack"
+ *
+ *        interrogate - add
+ *
+ *          [t] -------> [p]  "aaaahahahaha .. just kidding!"           (add me)  <a href="http://itsecurity.mq.edu.au/chaos/tyd/addme.wav">c(</a>
+ *          [t] <------- [p]  [node_count] - close
+ *
+ *
+ *        interrogate - del
+ *
+ *          [t] -------> [p]  "*phht* daaaahahahaha!"                   (del me)  <a href="http://itsecurity.mq.edu.au/chaos/tyd/delme.wav">c(</a>
+ *          [t] <------- [p]  close
+ *
+ *
+ *
+ *    tyd help can be found with "tyd --help"
+ *  
+ */
+</pre>
+
+
+<br><br><br>
+<font size="2"><i>What is &quot;get-m&quot;?</i></font><br><br><br>
+&nbsp; &nbsp; The CHAOS autodiscovery daemon, tyd, needed a little help.  As mentioned above, tyd needs
+to know the IP address of just one node in the cluster (any node), so that the Terrence component of tyd
+can download the cluster map, and find all of the other nodes in the cluster.  As you will see below, to
+specify this &quot;master&quot; node, you pass tyd the &quot;-m&quot; paramater.<br>
+<br>
+&nbsp; &nbsp; This new daemon <i>get-m</i>, pronounced &quot;get em&quot; (like a Brittish &quot;get them&quot;),
+removes the need to manually key in an IP address for Terrence to retrieve a map from.  Instead, get-m 
+uses a multicast sonar to try to find any nodes that may already exist on this LAN segment.  If it finds
+any, it records them in /var/run/get-m.info for tyd to find.<br>
+
+
+<br><br><br>
+<font size="2"><i>How about a usage example?</i></font><br><br><br>
+&nbsp; &nbsp; Before we begin, CHAOS-1.0 comes with <i>get-m</i> (read above), largely removing the need
+to perform the following.  If you're using get-m and you can't find another node in your cluster, then
+you will need to perform the &quot;second node in the cluster&quot; step on the first node to be started in the
+new mulitcast domain (this LAN or VLAN segment).<br>
+<br>
+&nbsp; &nbsp; The first node in the cluster runs the daemon without parameters (there is no cluster to join);<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; [192.168.1.12]# tyd<br>
+<br>
+<br>
+&nbsp; &nbsp; The second node in the cluster runs the daemon with the IP address of the first node;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; [192.168.1.109]# tyd --master 192.168.1.12<br>
+<br>
+<br>
+&nbsp; &nbsp; The third node in the cluster runs the daemon like the second, though it now has the luxury of
+choice.  It can either use the IP of the first node in the cluster, or alternatively, the IP of the second node in the
+cluster;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; [192.168.1.87]# tyd --master 192.168.1.12<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; [192.168.1.87]# tyd --master 192.168.1.109<br>
+<br>
+<br>
+&nbsp; &nbsp; And so on.<br>
+<br>
+
+<br><br><br>
+<font size="2"><i>CHAOS has stateful packet filtering?</i></font><br><br><br>
+&nbsp; &nbsp; Fortunately, yes.  The Mosix/openMosix architecture is incredibly insecure; from
+vulnerabilities in the respective implementations, all the way back to their insecure design.  Since
+CHAOS 0.5, tyd has supported packet filtering using the linux netfilter kernel-level stateful packet
+filtering code.<br>
+<br>
+&nbsp; &nbsp; From CHAOS 0.7, if cryptography is disabled, then the filters employed allow
+only the node's http daemon and ty-daemon to be visible to the network, beyond those nodes
+registered in the cluster.  If cryptography is enabled, then the filters employed allow 
+only the node's http daemon, IPSEC's ESP protocol, and IKE's service port visible to the
+network, beyond those nodes registered in the cluster.  With cryptography enabled, all
+openMosix and tyd communications are required to route via the ipsec0 interface, only.<br>
+
+<br><br><br>
+<font size="2"><i>So CHAOS has crypto; like 3DES under IPSEC?</i></font><br><br><br>
+&nbsp; &nbsp; From CHAOS 0.7, tyd has supported the layer-3 VPN standard - IPSEC - with a
+default encryption transform of 3DES (Triple DES).  CHAOS uses pre-shared-keys (PSKs) to 
+authenticate the tunnel.<br>
+<br>
+&nbsp; &nbsp; The default value for the PSK is stored in /etc/ipsec.secrets.  It is long
+and complicated, but it would still be most prudent avoid using the default.  Note that 
+using the default will ensure that differing tyd versions will not successfully communicate
+within the same cluster.  See also the following sections on compatibility for details on
+CHAOS nodes in non-CHAOS-homogeneous clusters.<br>
+<br>
+&nbsp; &nbsp; Nb; CHAOS applies the default FreeSWAN encrypt, tunnel, compress and pfs
+transforms in a fully meshed topology ("n-1" tunnels per node).  All tyd and openMosix
+communications are encrypted and encapsulated in the IPSEC tunnels.<br>
+
+<br><br><br>
+<font size="2"><i>I can't (don't want to) run a homogeneous CHAOS openMosix cluster ...</i></font><br><br><br>
+&nbsp; &nbsp; Fortunately, in many cases this will not cause concern.  ClusterKnoppix has
+adopted tyd into its distribution, allowing harmony to reign between the two.  There is a
+special HowTo document on building a secure cluster, based on ClusterKnoppix and CHAOS. And,
+since writing the HowTo, Quantian (a derrivative of ClusterKnoppix) has also adopted tyd.<br>
+<br>
+&nbsp; &nbsp; The compatible versions that contain the CHAOS security features, are; 
+CHAOS 0.7, ClusterKnoppix 2003-11-19-EN-cl1 and Quantian 0.4.9.2.  Note that the latest
+tyd was not made available to ClusterKnoppix or Quantian authors prior to the release of
+CHAOS-1.0; check the distribution web sites for current compatible versions.<br>
+
+<br><br><br>
+<font size="2"><i>I want to run a defferent type of heterogeneous openMosix cluster ...</i></font><br><br><br>
+&nbsp; &nbsp; If the distribution(s) you wish to use are not tyd-enabled, then you will
+need to disable tyd on CHAOS.<br>
+<br>
+&nbsp; &nbsp; Some of the more valuable features of CHAOS will cause great pain when
+attempting to use CHAOS nodes in openMosix clusters that contain non-CHAOS distributions.
+There are two ways to ease your suffering; try running tyd and omdiscd simultaneously, or
+remove tyd comlpetely, running omdiscd only.  From a freshly booted node, try one of the
+following .. <br>
+<br>
+&nbsp; &nbsp; Running both discovery daemons simultaneously;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; [192.168.1.87]# tyd --filter off --filter init<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; [192.168.1.87]# tyd --filter off [--master ip]<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; [192.168.1.87]# omdiscd<br>
+<br>
+<br>
+&nbsp; &nbsp; Running the openMosix discovery daemon only;<br>
+<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; [192.168.1.87]# tyd --filter off --filter init<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; [192.168.1.87]# omdiscd<br>
+<br>
+<br>
+&nbsp; &nbsp; Please remember, that disabling tyd will remove the unicast functionality and 
+network level encryption that you may have enjoyed previously.  Note too, that the results of
+running both daemons simultaneously may yield undefined results (such as pieces of cluster
+map discovered by unicast nodes that are not discovered by multicast nodes and vice-versa).
+  The best solution for compatbility is probably reverting back to omdiscd only.<br>
+
+<br><br><br>
+<font size="2"><i>Why did you create another auto discovery process?</i></font><br><br><br>
+&nbsp; &nbsp; The TNP protocol was created to solve the shortcomings of the omdiscd.  The omdiscd
+does an awesome job of dynamically configuring the kernel with a common cluster-wide openMosix map;
+providing your cluster is within a single VLAN or LAN segment.  This segment boundary limitation
+is not intentional - the multicast traffic used to maintain the cluster configuration is only
+isolated due to the routing infrastructure surrounding a given segment.  However, having spent
+three days trying to get mrouted to bridge VLANs on a proxy-arp'd class-b network, it became
+evident that writing a unicast autodiscovery daemon would be far more productive.<br>
+
+<br><br><br>
+<font size="2"><i>Does tyd have any known limitations?</i></font><br><br><br>
+&nbsp; &nbsp; At this stage tyd, like omdiscd, does not support node removal.  Hooks have
+been coded, but the openMosix kernel is not accepting the node removal request -- more 
+investigation is required.<br>
+
+<br><br><br>
+<font size="2"><i>Additional documentation</i></font><br><br><br>
+&nbsp; &nbsp; If you have read everything here and you're still not sure what you are
+dealing with, or if you would like a more business focused response to your SSI and
+openMosix concerns, then try the documentation available in the &quot;howto&quot;
+section.<br>
+
+<br><br><br>
+<font size="2"><i>Why Terrence and Phillip?</i></font><br><br><br>
+&nbsp; &nbsp; Internetworking protocols, such as the autodiscovery protocol documented here, must strike
+a harmonious chord both without, as in their network operating environment, and within, between and among
+their peers.  We believe that Terrence and Phillip are the personification and embodiment of this ephemeral
+harmony - and are, or should be, role models for us all.<br>
+<br>
+<br>
+
+</td></tr>
+</table> 
+
+      </td>
+    </tr>
+    </table>						
+  </td>
+</tr>
+</table>
+</center>
+<br><br>
+
+<script language="Javascript">
+  /* This seems to fix the audio repeat on mouse-over in the
+     Opera browser, which was irritating as all hell ..       */
+  var noise = "tyd.wav";
+  if(location.href.substring(0, 28) == 'http://itsecurity.mq.edu.au/') {
+    if(navigator.appName == "Microsoft Internet Explorer")
+      document.writeln ('<bgsound src="' + noise + '" hidden="true" autostart="true" loop="false">');
+    else if (navigator.appName == "Netscape")
+      document.writeln ('<embed src="' + noise + '" hidden="true" autostart="true" loop="false">');
+  }
+</script>
+<noscript>
+  <bgsound src="tyd.wav" hidden="true" autostart="true" loop="false">
+</noscript>
+
+</body>
+</html>
+

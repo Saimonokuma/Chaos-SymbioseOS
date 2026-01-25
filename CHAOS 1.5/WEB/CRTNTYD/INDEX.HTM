@@ -1,0 +1,146 @@
+<html>
+<head>
+
+<meta http-equiv="Content-Language" content="en">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta http-equiv="Page-Enter" content="revealTrans(Duration=0.25,Transition=22)">
+<meta name="author" content="ITSecurity@MQ">
+<meta name="description" content="CHAOS certaintyd page; What is certaintyd?, How does certaintyd work?">
+<meta name="distribution" content="GLOBAL">
+<meta name="generator" content="/bin/vi">
+<meta name="keywords" content="Certaintyd MD5 openMosix Linux bootable business card cdrom distribution secure IPSEC CHAOS SSI crypto 3DES GNU GPL">
+<meta name="language" content="en">
+<meta name="resource-type" content="document">
+<meta name="revisit-after" content="14 DAYS">
+<meta name="robots" content="index,follow">
+
+<title>CHAOS - certaintyd - An openMosix SSI distribution; The supercomputer for your wallet</title>
+
+<style type="text/css">
+
+BODY				{ margin: 0px;
+				  color: #FFFFFF;
+				  font-family: "Verdana", "Tahoma", "Arial", "Helvetica", "Geneva", "sans-serif";
+				  background-color : #000000;
+				  scrollbar-base-color: #211D1C;
+				  scrollbar-arrow-color: #8D7A74; }
+
+A:link				{ color: #F3EFEC;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A:visited			{ color: #F3EFEC;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A:active			{ color: #F3EFEC;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A:hover				{ color: #F3EFEC;
+				  text-decoration: underline;
+				  font-weight: normal; }
+
+TD				{ font-family: "Verdana", "Tahoma", "Arial", "Helvetica", "Geneva", "sans-serif";
+				  font-size: 11px;
+				  background-color: #000000;
+				  color: #E1DCD8 }
+
+TD.title			{ font-family: "Verdana", "Tahoma", "Arial", "Helvetica", "Geneva", "sans-serif";
+				  font-size: 11px;
+				  background-color: #211D1C;
+				  color: #E1DCD8 }
+</style>
+</head>
+<body>
+
+<br><br>
+<center>
+<table width="650" bgcolor="#8D7A74" cellpadding="6" cellspacing="1" border="0" valign="top">
+<tr>
+  <td width="100%" bgcolor="#1C1B19" valign="top" align="left" class="channelquote">
+    <table cellspacing="0" cellpadding="0" border="0" width="100%">
+    <tr>
+      <td>
+
+<table cellspacing="0" cellpadding="2" border="0" width="650">
+<tr><td width="650" colspan="2"><font size="4">CHAOS</font></td></tr>
+<tr><td class="title">Be safe. Be certain.</td><td class="title" align="right">[<a href="../index.htm">main</a>] [<a href="../about/index.htm">about</a>] [<a href="../initd/index.htm">initd</a>] [certaintyd] [<a href="../tyd/index.htm">tyd</a>] [<a href="../net/index.htm">networking</a>] [<a href="../howto/index.htm">howto</a>] [<a href="../credits/index.htm">credits</a>]</td></tr>
+<tr><td align="left" colspan="2"><br><br><br>
+<font size="2"><i>What is a &quot;certaintyd&quot;?</i></font><br><br><br>
+&nbsp; &nbsp; Glad you asked.  This neat little daemon is a blessing for an operating
+environment (SSI) that can be spread across thousands of hosts.  CHAOS, among its peers,
+is excessive in its approach to security; containing three distinct security
+improvements.  One of those improvements, certaintyd, is an integrity checker that will
+reboot a node if notable exploitation occurs (the others being dynamic stateful packet
+filtering and layer-3 data encryption - in tyd).<br>
+<br>
+&nbsp; &nbsp; A word to the wise; certaintyd is still included in CHAOS-1.x but no longer
+runs from any boot menu option.  This is due to the SSH public key sharing that is done
+in tyd, which cannot presently be disabled (this disable feature is awaiting a little 
+protocol redevelopment in tyd itself).  If you desperately want certaintyd enabled, you
+should comment out the SSH key sharing in tyd.<br>
+
+<br><br><br>
+<font size="2"><i>How does it work?</i></font><br><br><br>
+&nbsp; &nbsp; The certaintyd takes an md5(a) checksum of the root disk (/dev/ram0) once
+every two seconds, 30 seconds after startup.  Should the CHAOS running disk image change
+(even one iota) the certaintyd will send a SIGTERM to process one (initd).  The upshot?
+If the CHAOS system gets hacked, then any change to the running image will result in the
+whole node being kindly rebooted.<br>
+
+<br><br><br>
+<font size="2"><i>It doesn't look fool-proof to me!</i></font><br><br><br>
+&nbsp; &nbsp; The certaintyd process can be killed .. a hacker need not write to the
+root image to break into the system .. there are a number of &quot;flaws&quot; to the concept. 
+However, the reassurance that comes from certaintyd will be that &quot;someone is watching&quot;
+node 106 at 3am while you're not.<br>
+<br>
+&nbsp; &nbsp; Nb; the process has not been sig-trapped, so that it
+can be killed in the event that software needs to be added to the node directly -- by the
+owner .. hopefully ;-)<br>
+
+<br><br><br>
+<font size="2"><i>If you have problems with nodes rebooting for no reason ..</i></font><br><br><br>
+&nbsp; &nbsp; FYI; It has been observed that in some cases certaintyd will kill init for no
+apparent reason.  It is still not fully understood why the root (memory) file-system 
+would invalidate its checksum, in these cases.  However, to date, this issue has only
+emerged when CHAOS is booted under VMware.<br>
+<br>
+&nbsp; &nbsp; As a second FYI, recent (1.0-pre) versions of Busybox seem to produce a single
+eroneous md5sum output, prior to a consistent one.  While certaintyd has been updated to reflect
+this issue, there is still much concern as to why the issue exists at all.<br>
+
+<br>
+<br>
+
+</td></tr>
+</table> 
+
+      </td>
+    </tr>
+    </table>						
+  </td>
+</tr>
+</table>
+</center>
+<br><br>
+
+<script language="Javascript">
+  /* This seems to fix the audio repeat on mouse-over in the
+     Opera browser, which was irritating as all hell ..       */
+  var noise = "crtntyd.wav";
+  if(location.href.substring(0, 28) == 'http://itsecurity.mq.edu.au/') {
+    if(navigator.appName == "Microsoft Internet Explorer")
+      document.writeln ('<bgsound src="' + noise + '" hidden="true" autostart="true" loop="false">');
+    else if (navigator.appName == "Netscape")
+      document.writeln ('<embed src="' + noise + '" hidden="true" autostart="true" loop="false">');
+  }
+</script>
+<noscript>
+  <bgsound src="crtntyd.wav" hidden="true" autostart="true" loop="false">
+</noscript>
+
+</body>
+</html>
+

@@ -1,0 +1,24 @@
+07       CHAOS      CD version 0c1.507      http://midnightcode.org/chaos/
+08              __________                              _,            
+            ."          ".      .--""--.          _.-{__}-._        
+            | .--------. |    .'        '.      .:-'`____`'-:.      
+           /` |________| `\  /   .'``'.   \    /_.-"`_  _`"-._\     
+          |  / / .\/. \ \  ||  .'/.\/.\'.  |  /`   / .\/. \   `\    
+          \_/  \__/\__/  \_/|  : |_/\_| ;  |  |    \__/\__/    |    
+            \            /   \ '.\    /.' / .-\                >/-. 
+            /'._  --  _.'\   /'. `'--'` .'\/   '._-.__--__.-_.'    \ 
+           /_   `""""`   _\ /_  `-./\.-'  _\'.    `""""""""`'`\    ;
+          (_|            |_)_/            \__)|        '           | 
+           `|\__________/|;                  `_________'________`;-'
+             '----------'   '--------------'`--------------------`  
+04                 FIAT         8o88yD1g1t4L         Gobbledok
+07
+This system contains software which may be modified and redistributed.
+Information about copying terms and permissions for included software may
+be found on the CD after boot in the /COPYING file.  In addition to
+specifying copying permissions, many of the copyright holders, and the
+compilers of the CHAOS system, have made disclaimers of warranty.  
+
+Information about these disclaimers may be found in the same place.
+
+0cF1: 07Main        0cF2: 07About       0cF3: 07HW Req'd   0cF4: 07Boot Opts   0cF5: 07IP Opts

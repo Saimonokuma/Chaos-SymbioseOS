@@ -1,0 +1,209 @@
+<html>
+<head>
+
+<meta http-equiv="Content-Language" content="en">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta http-equiv="Page-Enter" content="revealTrans(Duration=0.25,Transition=22)">
+<meta name="author" content="ITSecurity@MQ">
+<meta name="description" content="CHAOS init page; What is init?, How does init work?">
+<meta name="distribution" content="GLOBAL">
+<meta name="generator" content="/bin/vi">
+<meta name="keywords" content="Init openMosix Linux bootable business card cdrom distribution secure IPSEC CHAOS SSI crypto 3DES GNU GPL">
+<meta name="language" content="en">
+<meta name="resource-type" content="document">
+<meta name="revisit-after" content="14 DAYS">
+<meta name="robots" content="index,follow">
+
+<title>CHAOS - initd - An openMosix SSI distribution; The supercomputer for your wallet</title>
+
+<style type="text/css">
+
+BODY				{ margin: 0px;
+				  color: #FFFFFF;
+				  font-family: "Verdana", "Tahoma", "Arial", "Helvetica", "Geneva", "sans-serif";
+				  background-color : #000000;
+				  scrollbar-base-color: #211D1C;
+				  scrollbar-arrow-color: #8D7A74; }
+
+A:link				{ color: #F3EFEC;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A:visited			{ color: #F3EFEC;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A:active			{ color: #F3EFEC;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A:hover				{ color: #F3EFEC;
+				  text-decoration: underline;
+				  font-weight: normal; }
+
+TD				{ font-family: "Verdana", "Tahoma", "Arial", "Helvetica", "Geneva", "sans-serif";
+				  font-size: 11px;
+				  background-color: #000000;
+				  color: #E1DCD8 }
+
+TD.title			{ font-family: "Verdana", "Tahoma", "Arial", "Helvetica", "Geneva", "sans-serif";
+				  font-size: 11px;
+				  background-color: #211D1C;
+				  color: #E1DCD8 }
+</style>
+</head>
+<body>
+
+<br><br>
+<center>
+<table width="650" bgcolor="#8D7A74" cellpadding="6" cellspacing="1" border="0" valign="top">
+<tr>
+  <td width="100%" bgcolor="#1C1B19" valign="top" align="left" class="channelquote">
+    <table cellspacing="0" cellpadding="0" border="0" width="100%">
+    <tr>
+      <td>
+
+<table cellspacing="0" cellpadding="2" border="0" width="650">
+<tr><td width="650" colspan="2"><font size="4">CHAOS</font></td></tr>
+<tr><td class="title">Process one</td><td class="title" align="right">[<a href="../index.htm">main</a>] [<a href="../about/index.htm">about</a>] [initd] [<a href="../crtntyd/index.htm">certaintyd</a>] [<a href="../tyd/index.htm">tyd</a>] [<a href="../net/index.htm">networking</a>] [<a href="../howto/index.htm">howto</a>] [<a href="../credits/index.htm">credits</a>]</td></tr>
+<tr><td align="left" colspan="2"><br><br><br>
+<font size="2"><i>What is &quot;initd&quot;?</i></font><br><br><br>
+&nbsp; &nbsp; The initd (or just plain &quot;init&quot;) is the unix initialisation
+process.  It is the first user space software to be executed after the kernel has loaded.
+Init's job is to literally initialise the operating environment.  It does this by 
+setting start-up kernel values, mounting file systems, loading server software, etc.<br>
+
+<br><br><br>
+<font size="2"><i>How does it work?</i></font><br><br><br>
+&nbsp; &nbsp; The CHAOS init daemon works very much like the traditional init (though far
+less gracefully).<br>
+<br>
+&nbsp; &nbsp; At startup, each of the desired processes are initialised and launched.  At
+shutdown (ctrl-alt-del or &quot;kill 1&quot;) the init process gracefully brings the system
+down.  Actually, it is the shutdown process that is the most important of the two; during 
+shutdown, init asks openMosix to expel all of the locally retained processes, so that no parcels
+are lost on reboot.<br>
+<br>
+&nbsp; &nbsp; The real power of the CHAOS init won't be of interest to you unless you try
+to embed CHAOS, or try to customise it in some way that requires special deployment.  For
+those who want to serve CHAOS to a network, or make their own CD's, etc, the CHAOS init 
+supports a number of environment options that will act to parameterise the startup 
+characteristics of the operating environment.  On the boot prompt/boot command line, after
+the <i>init=</i> specifier, you can add <i>PARAM=value</i> options, each separated by 
+spaces.  Unfortunately there is a very limited number of these values (32 chars worth?) that
+the kernel will accept - even though /proc/cmdline may reflect all of the options entered.
+A future version of init will probably rectify this issue by either reading /proc/cmdline,
+downloading an options file from a tftp server, or doing both.<br>
+
+<br><br><br>
+<font size="2"><i>That's a lot of verbage, any ASCII art?</i></font><br><br><br>
+<pre>
+/*
+ *  ACPID               ACPID Start/Allow
+ *              = 0             Don't
+ *              = 1             Do
+ *
+ *  BOOT                Boot Type
+ *              = 0             Unknown/ISO
+ *              = 1             Network
+ *              = 2             Local/Fixed Disk
+ *
+ *  DHCP                DHCP client Start/Allow
+ *              = 0             Don't
+ *              = 1             Do
+ *
+ *  EJECT               CDROM Find/Eject
+ *              = 0             Don't
+ *              = 1             Do
+ *
+ *  HTTPD               HTTPD Start/Allow
+ *              = 0             Don't
+ *              = 1             Do
+ *              = 2             Do + Admin
+ *
+ *  IPFILT              Ipfilter Start/Allow
+ *              = 0             Don't
+ *              = 1             Do
+ *
+ *  IPSEC               IPSEC Start/Allow
+ *              = 0             Don't
+ *              = 1             Do
+ *
+ *  MASTER              Allocate discovery host (tyd)
+ *              =               ip.ad.dr.ess
+ *              =               host.na.me
+ *
+ *  OMAUTO              Autodiscovery Type
+ *              = 0             Unknown/None
+ *              = 1             Omdiscd
+ *              = 2             Tyd
+ *
+ *  SETI                SETI Start/Allow
+ *              = 0             Don't
+ *              = 1             Do
+ *
+ *  SHELL               Boot to Interactive Shell
+ *              = 0             Don't
+ *              = 1             Do
+ *
+ *  SSHD                SSHD Start/Allow
+ *              = 0             Don't
+ *              = 1             Do
+ *
+ *  TYD                 TYD behaviour
+ *              = 0             None/Off
+ *              = 1             Slave
+ *              = 2             Master
+ *              = 3             PXE-Master
+ *
+ */
+</pre>
+
+
+<br><br><br>
+<font size="2"><i>Why create another init process?</i></font><br><br><br>
+&nbsp; &nbsp; In a dedicated task environment, the flexibility of a complete unix OS is
+simply not required.  Removing said flexibility allows for focus in the distribution; our
+init does only what is required to start the cluster environment and without the use of
+a myriad of shell scripts.  This technique also makes it easier to integrate features
+comprehensively (such as PXE boot options).<br>
+
+<br><br><br>
+<font size="2"><i>Be aware ...</i></font><br><br><br>
+&nbsp; &nbsp; CHAOS was never meant to run as a user-based system.  Each node is really just
+a slave to the cluster.  In this light, some decisions have been made that you should consider
+when using CHAOS nodes.  Note that the shell launched on startup is a virtual console that
+won't respawn; exiting this shell will leave you with no system access (until you reboot).<br>
+<br>
+<br>
+
+</td></tr>
+</table> 
+
+      </td>
+    </tr>
+    </table>						
+  </td>
+</tr>
+</table>
+</center>
+<br><br>
+
+<script language="Javascript">
+  /* This seems to fix the audio repeat on mouse-over in the
+     Opera browser, which was irritating as all hell ..       */
+  var noise = "initd.wav";
+  if(location.href.substring(0, 28) == 'http://itsecurity.mq.edu.au/') {
+    if(navigator.appName == "Microsoft Internet Explorer")
+      document.writeln ('<bgsound src="' + noise + '" hidden="true" autostart="true" loop="false">');
+    else if (navigator.appName == "Netscape")
+      document.writeln ('<embed src="' + noise + '" hidden="true" autostart="true" loop="false">');
+  }
+</script>
+<noscript>
+  <bgsound src="initd.wav" hidden="true" autostart="true" loop="false">
+</noscript>
+
+</body>
+</html>
+

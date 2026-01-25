@@ -1,0 +1,162 @@
+<html>
+<head>
+
+<meta http-equiv="Content-Language" content="en">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta http-equiv="Page-Enter" content="revealTrans(Duration=0.25,Transition=22)">
+<meta name="author" content="ITSecurity@MQ">
+<meta name="description" content="CHAOS networking page; What is CHAOS networking?, How does CHAOS networking work?">
+<meta name="distribution" content="GLOBAL">
+<meta name="generator" content="/bin/vi">
+<meta name="keywords" content="Networking dhcp bootp openMosix Linux bootable business card cdrom distribution secure IPSEC CHAOS SSI crypto 3DES GNU GPL">
+<meta name="language" content="en">
+<meta name="resource-type" content="document">
+<meta name="revisit-after" content="14 DAYS">
+<meta name="robots" content="index,follow">
+
+<title>CHAOS - networking - An openMosix SSI distribution; The supercomputer for your wallet</title>
+
+<style type="text/css">
+
+BODY				{ margin: 0px;
+				  color: #FFFFFF;
+				  font-family: "Verdana", "Tahoma", "Arial", "Helvetica", "Geneva", "sans-serif";
+				  background-color : #000000;
+				  scrollbar-base-color: #211D1C;
+				  scrollbar-arrow-color: #8D7A74; }
+
+A:link				{ color: #F3EFEC;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A:visited			{ color: #F3EFEC;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A:active			{ color: #F3EFEC;
+				  text-decoration: none;
+				  font-weight: normal; }
+
+A:hover				{ color: #F3EFEC;
+				  text-decoration: underline;
+				  font-weight: normal; }
+
+TD				{ font-family: "Verdana", "Tahoma", "Arial", "Helvetica", "Geneva", "sans-serif";
+				  font-size: 11px;
+				  background-color: #000000;
+				  color: #E1DCD8 }
+
+TD.title			{ font-family: "Verdana", "Tahoma", "Arial", "Helvetica", "Geneva", "sans-serif";
+				  font-size: 11px;
+				  background-color: #211D1C;
+				  color: #E1DCD8 }
+</style>
+</head>
+<body>
+
+<br><br>
+<center>
+<table width="650" bgcolor="#8D7A74" cellpadding="6" cellspacing="1" border="0" valign="top">
+<tr>
+  <td width="100%" bgcolor="#1C1B19" valign="top" align="left" class="channelquote">
+    <table cellspacing="0" cellpadding="0" border="0" width="100%">
+    <tr>
+      <td>
+
+<table cellspacing="0" cellpadding="2" border="0" width="650">
+<tr><td width="650" colspan="2"><font size="4">CHAOS</font></td></tr>
+<tr><td class="title">Options for enabling networking</td><td class="title" align="right">[<a href="../index.htm">main</a>] [<a href="../about/index.htm">about</a>] [<a href="../initd/index.htm">initd</a>] [<a href="../crtntyd/index.htm">certaintyd</a>] [<a href="../tyd/index.htm">tyd</a>] [networking] [<a href="../howto/index.htm">howto</a>] [<a href="../credits/index.htm">credits</a>]</td></tr>
+<tr><td align="left" colspan="2"><br><br><br>
+<font size="2"><i>What's so special about CHAOS networking?</i></font><br><br><br>
+&nbsp; &nbsp; CHAOS has been designed with large ad-hoc roll-outs in mind.  Everywhere that
+a problem was considered, the resultant decision was almost certainly made in favor of 
+security, simplicity and automation.  To achieve the largest possible gains in time/labour saving
+through automation in networking, the boot screen features a matrix of prefabricated
+boot options.  These options allow for combinations of DHCP, BOOTP or static addressing to be
+quickly selected - the default being dynamic (DHCP/BOOTP).  In the case that no network 
+configurator exists, pressing F5 at the boot prompt will display instructions for manually
+entering static IP interface data.<br>
+
+<br><br><br>
+<font size="2"><i>How does it work?</i></font><br><br><br>
+&nbsp; &nbsp; All CHAOS automagic IP configuration options are managed by Init, to provide
+the fastest flexible boot sequence possible.  This implementation method ensures that,
+where required, supporting drivers (such as PCMICIA support) can be loaded before attempting
+to obtain network connectivity.<br> 
+
+<br><br><br>
+<font size="2"><i>What services are used, how about some ASCII art?</i></font><br><br><br>
+<pre>
+ #
+ # CHAOS-1.0  /etc/services
+ #
+ #
+ # Network services, Internet style
+ #
+ ssh             22/tcp          # Secure Shell Login
+ bootps          67/udp          # BOOTP server
+ bootpc          68/udp          # BOOTP client
+ tftp            69/udp          # Trivial File Transfer Protocol
+ http            80/tcp          # WorldWideWeb HTTP
+ ike             500/udp         # IPSEC IKE
+ #
+ #
+ # Local openMosix
+ #
+ om-mfs          723/tcp         # openMosix FileSystem port
+ om-disc         1334/udp        # openMosix autodiscovery protocol
+ om-mig          4660/tcp        # openMosix Migration Daemon port
+ om-info         5428/udp        # openMosix Info Daemon port
+ #
+ #
+ # Local CHAOS
+ #
+ mgetm           2727/udp        # mulicast get-m protocol
+ ugetm           2728/udp        # unicast get-m protocol
+ tnp             3278/tcp        # terrence-n-phillip protocol
+</pre>
+
+<br><br><br>
+<font size="2"><i>How secure is CHAOS?</i></font><br><br><br>
+&nbsp; &nbsp; A network vulnerability assessment page has been created to help answer
+this question.  Please follow this link, <a href="../security/scans/index.htm">here</a>.<br>
+
+<br><br><br>
+<font size="2"><i>Why can't I just configure networking manually, using ifconfig/route?</i></font><br><br><br>
+&nbsp; &nbsp; The good news is, you can (but don't forget to run fix_hosts afterwards - and
+be sure to complete all changes before the 30second warm up period for the certaintyd).<br>
+
+
+<br>
+<br>
+
+</td></tr>
+</table> 
+
+      </td>
+    </tr>
+    </table>						
+  </td>
+</tr>
+</table>
+</center>
+<br><br>
+
+<script language="Javascript">
+  /* This seems to fix the audio repeat on mouse-over in the
+     Opera browser, which was irritating as all hell ..       */
+  var noise = "net.wav";
+  if(location.href.substring(0, 28) == 'http://itsecurity.mq.edu.au/') {
+    if(navigator.appName == "Microsoft Internet Explorer")
+      document.writeln ('<bgsound src="' + noise + '" hidden="true" autostart="true" loop="false">');
+    else if (navigator.appName == "Netscape")
+      document.writeln ('<embed src="' + noise + '" hidden="true" autostart="true" loop="false">');
+  }
+</script>
+<noscript>
+  <bgsound src="net.wav" hidden="true" autostart="true" loop="false">
+</noscript>
+
+</body>
+</html>
+

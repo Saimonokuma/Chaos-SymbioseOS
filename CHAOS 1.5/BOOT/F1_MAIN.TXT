@@ -1,0 +1,24 @@
+07       CHAOS      CD version 0c1.507      http://midnightcode.org/chaos/
+08              __________                              _,            
+            ."          ".      .--""--.          _.-{__}-._        
+            | .--------. |    .'        '.      .:-'`____`'-:.      
+           /` |________| `\  /   .'``'.   \    /_.-"`_  _`"-._\     
+          |  / / .\/. \ \  ||  .'/.\/.\'.  |  /`   / .\/. \   `\    
+          \_/  \__/\__/  \_/|  : |_/\_| ;  |  |    \__/\__/    |    
+            \            /   \ '.\    /.' / .-\                >/-. 
+            /'._  --  _.'\   /'. `'--'` .'\/   '._-.__--__.-_.'    \ 
+           /_   `""""`   _\ /_  `-./\.-'  _\'.    `""""""""`'`\    ;
+          (_|            |_)_/            \__)|        '           | 
+           `|\__________/|;                  `_________'________`;-'
+             '----------'   '--------------'`--------------------`  
+04                 FIAT         8o88yD1g1t4L         Gobbledok
+07
+
+0c                             Welcome to CHAOS
+0c                    "The supercomputer for your wallet"
+07
+
+            Supported PXE client boot options are; j1, j3
+            For boot menu help and information, please press 0fF407.
+
+0cF2: 07About       0cF3: 07HW Req'd    0cF4: 07Boot Opts  0cF5: 07IP Opts     0cF6: 07Copyrights

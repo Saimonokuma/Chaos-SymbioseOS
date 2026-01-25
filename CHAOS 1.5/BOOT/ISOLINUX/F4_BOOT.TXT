@@ -1,0 +1,24 @@
+07       CHAOS      CD version 0c1.507      http://midnightcode.org/chaos/
+
+   Supported boot options are; j1-4, n1-5, l1, l3, s1  Please see the
+   table below for details of the features behind each boot selection.
+
+         Purpose of this node? \         Features desired?
+       ------------------------+------+------+------+------+------+
+         Join existing cluster |  j1  |  j2  |  j3  |  j4  |      |
+           Start a new cluster |  n1  |  n2  |  n3  |  n4  |  n5  |
+        LAN boot a new cluster |  l1  |      |  l3  |      |      |
+         Dedicate to SETI@home |  s1  |      |      |      |      |
+       ------------------------+------+------+------+------+------+
+               dhcp/rarp/bootp |   y  |   y  |   y  |   y  |      |
+           interactive console |   y  |   y  |      |      |   y  |
+                          sshd |      |      |   y  |   y  |      |
+                         httpd |   y  |   y  |      |      |   y  |
+                       omdiscd |      |   y  |      |   y  |      |
+                           tyd |   y  |      |   y  |      |      |
+       ------------------------+------+------+------+------+------+
+         Default = j1          /    Trial    /  Dedicated  / Test 
+
+  Warning: enabling omdiscd or SET@home will disable most security features
+
+0cF1: 07Main        0cF2: 07About       0cF3: 07HW Req'd   0cF5: 07IP Opts     0cF6: 07Copyrights
