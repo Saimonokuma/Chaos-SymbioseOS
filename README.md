@@ -110,3 +110,7 @@ Once the WDF driver is fortified and compiled (MSVC `/WX` flag mandatory) and th
 4. Load the output file into AME Wizard on the target Atlas OS machine.
 
 ---
+
+### Support This Project
+
+☕ https://ko-fi.com/saimonokuma
