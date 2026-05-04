@@ -140,6 +140,6 @@ steps:
 This architecture bridges decades of code to build an infinitely scalable, sovereign, and self-sustaining AI hive mind.
 **Support the development and continuous integration of Project Symbiose:**
 
-☕ **[Support Saimonokuma on Ko-fi](https://www.google.com/search?q=https://ko-fi.com/saimonokuma)**
+☕ **[Support Saimonokuma on Ko-fi](https://ko-fi.com/saimonokuma)**
 
 *Law is Code. Code is Law. Created by Saimonokuma.*
