@@ -12,7 +12,7 @@
 
 Welcome to **Project Symbiose**. This repository contains the source code, kernel drivers, and automation playbooks required to transmigrate the original `chaos-1.5.iso` (developed by Ian Latter, c. 2004) into a modern, Ring-0 parasitic execution environment on Windows 10 (Atlas OS).
 
-The ultimate output of this repository is a single **`.apbx` (AME Wizard Playbook)** file. When executed via TrustedInstaller, it bypasses the Windows Host, sequesters physical RAM into a "Dark Layer", and hot-boots the Chaos Linux Kernel natively without a reboot.
+The ultimate output of this repository is a single **`.apbx` (AME Wizard Playbook)** file. When executed via TrustedInstaller, it bypasses the Windows Host, sequesters physical RAM into a "Dark Layer", and host-both the Chaos Linux Kernel and Windows OS natively without a reboot in a Dual OS Parasitic Interface Guided by Owner + LLM.
 
 ---
 
