@@ -1,11 +1,10 @@
-# 03_HiveMind_Orchestrator/OpenMosix_2026/scripts/ouroboros_ast_gen.py
+# # 03_HiveMind_Orchestrator/OpenMosix_2026/scripts/ouroboros_ast_gen.py
 # Crucible: PATTERN-005 (Use pathlib)
 
 import json
-import os
-import sys
 from pathlib import Path
-
+import sys
+import os
 
 def generate_tensor_structs(schema_path: Path, output_path: Path) -> None:
     if not schema_path.exists():

@@ -1,4 +1,4 @@
-// 02_Symbiose_Bridge/src/acpi_handler.c
+// // 02_Symbiose_Bridge/src/acpi_handler.c
 // Crucible: PATTERN-008 (TOCTOU prevention), PATTERN-015 (cleanup on error)
 
 #include "symbiose_bridge.h"

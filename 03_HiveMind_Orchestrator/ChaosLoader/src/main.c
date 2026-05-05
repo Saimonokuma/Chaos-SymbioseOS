@@ -1,87 +1,36 @@
-// 03_HiveMind_Orchestrator/ChaosLoader/src/main.c
+// // 03_HiveMind_Orchestrator/ChaosLoader/src/main.c
 // Crucible: PATTERN-002 (expect not unwrap), PATTERN-005 (pathlib equivalent)
 
+#include "../../../02_Symbiose_Bridge/inc/symbiose_ioctls.h" // FIX 23: Path corrected
+#include "boot_params.h"
+#include <stdio.h>
+#include <stdlib.h>
 #ifdef _WIN32
 #include <windows.h>
-#include <winternl.h> // FIX 11: Required for NTSTATUS types in userspace
 #else
 #include <stdint.h>
 #include <string.h>
-typedef void *HANDLE;
-typedef void *PVOID;
+typedef void* PVOID;
 typedef size_t SIZE_T;
-typedef const char *LPCWSTR;
+typedef char CHAR;
+typedef unsigned char BOOLEAN;
+typedef const char* PCSTR;
 typedef int NTSTATUS;
-
-typedef union _LARGE_INTEGER {
-  struct {
-    unsigned int LowPart;
-    int HighPart;
-  } u;
-  long long QuadPart;
-} LARGE_INTEGER;
-
-typedef unsigned long DWORD;
-typedef unsigned short WCHAR;
-
-#define STATUS_UNSUCCESSFUL -1
-#define STATUS_NOT_FOUND -3
-#define STATUS_FILE_TOO_LARGE -4
-#define STATUS_NO_MEMORY -5
-#define STATUS_IO_DEVICE_ERROR -6
 #define STATUS_SUCCESS 0
-
-#define INVALID_HANDLE_VALUE ((void *)-1)
-#define GENERIC_READ 0x80000000L
-#define GENERIC_WRITE 0x40000000L
-#define FILE_SHARE_READ 0x00000001
-#define OPEN_EXISTING 3
-#define FILE_ATTRIBUTE_NORMAL 0x00000080
-#define MEM_COMMIT 0x00001000
-#define MEM_RESERVE 0x00002000
-#define PAGE_READWRITE 0x04
-#define MEM_RELEASE 0x8000
-#define MAX_PATH 260
-#define UNREFERENCED_PARAMETER(P) (void)(P)
-
-HANDLE CreateFileW(const void *lpFileName, DWORD dwDesiredAccess,
-                   DWORD dwShareMode, void *lpSecurityAttributes,
-                   DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes,
-                   HANDLE hTemplateFile) {
-  return INVALID_HANDLE_VALUE;
-}
-int GetFileSizeEx(HANDLE hFile, LARGE_INTEGER *lpFileSize) { return 0; }
-void *VirtualAlloc(void *lpAddress, SIZE_T dwSize, DWORD flAllocationType,
-                   DWORD flProtect) {
-  return NULL;
-}
-int ReadFile(HANDLE hFile, void *lpBuffer, DWORD nNumberOfBytesToRead,
-             DWORD *lpNumberOfBytesRead, void *lpOverlapped) {
-  return 0;
-}
-void VirtualFree(void *lpAddress, SIZE_T dwSize, DWORD dwFreeType) {}
-void CloseHandle(HANDLE hObject) {}
-DWORD GetLastError() { return 0; }
-int ExpandEnvironmentStringsW(const void *lpSrc, WCHAR *lpDst, DWORD nSize) {
-  return 0;
-}
-int DeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, void *lpInBuffer,
-                    DWORD nInBufferSize, void *lpOutBuffer,
-                    DWORD nOutBufferSize, DWORD *lpBytesReturned,
-                    void *lpOverlapped) {
-  return 0;
-}
-void KdPrint(const char *x) {}
+#define STATUS_INVALID_PARAMETER -1
+#define _Out_
+#define _In_
+#define _Inout_
+#define FALSE 0
+#define TRUE 1
+typedef uint8_t UINT8;
+typedef uint16_t UINT16;
+typedef uint32_t UINT32;
 #endif
-
-#include "boot_params.h"
-#include "symbiose_ioctls.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include <winternl.h> // FIX 11: Required for NTSTATUS types in userspace
 
 // PATTERN-005: Use environment variables, not hardcoded paths
 #define SYMBIOSE_CORE_DIR L"%SystemDrive%\\Symbiose_Core"
-#define SYMBIOSE_DRIVER_NAME L"SymbioseBridge"
 
 // FIX 9: Corrected string escaping
 #define SYMBIOSE_DRIVER_PATH L"\\\\.\\SymbioseBridge"
@@ -91,7 +40,6 @@ static NTSTATUS LoadFileIntoBuffer(_In_ LPCWSTR FilePath, _Out_ PVOID *Buffer,
   HANDLE hFile = INVALID_HANDLE_VALUE;
   LARGE_INTEGER fileSize;
   PVOID fileBuffer = NULL;
-  NTSTATUS status = STATUS_UNSUCCESSFUL;
 
   // PATTERN-002: Validate all parameters
   if (FilePath == NULL || Buffer == NULL || BufferSize == NULL) {
@@ -105,14 +53,15 @@ static NTSTATUS LoadFileIntoBuffer(_In_ LPCWSTR FilePath, _Out_ PVOID *Buffer,
                       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
   if (hFile == INVALID_HANDLE_VALUE) {
-    fprintf(stderr, "ChaosLoader: Failed to open (error %lu)\n",
+    // FIX 10: Replaced kernel-only KdPrint with fwprintf
+    fwprintf(stderr, L"ChaosLoader: Failed to open %ls (error %lu)\n", FilePath,
              GetLastError());
     return STATUS_NOT_FOUND;
   }
 
   // Get file size
   if (!GetFileSizeEx(hFile, &fileSize)) {
-    fprintf(stderr, "ChaosLoader: Failed to get file size (error %lu)\n",
+    fwprintf(stderr, L"ChaosLoader: Failed to get file size (error %lu)\n",
              GetLastError());
     CloseHandle(hFile);
     return STATUS_FILE_TOO_LARGE;
@@ -120,8 +69,8 @@ static NTSTATUS LoadFileIntoBuffer(_In_ LPCWSTR FilePath, _Out_ PVOID *Buffer,
 
   // Validate file size (max 1GB for kernel, 4GB for ramdisk)
   if (fileSize.QuadPart > 0x100000000ULL) {
-    fprintf(stderr, "ChaosLoader: File too large (error %lu)\n",
-             GetLastError());
+    fwprintf(stderr, L"ChaosLoader: File too large: %lld bytes\n",
+             fileSize.QuadPart);
     CloseHandle(hFile);
     return STATUS_FILE_TOO_LARGE;
   }
@@ -131,8 +80,8 @@ static NTSTATUS LoadFileIntoBuffer(_In_ LPCWSTR FilePath, _Out_ PVOID *Buffer,
                             MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
   if (fileBuffer == NULL) {
-    fprintf(stderr, "ChaosLoader: Failed to allocate bytes (error %lu)\n",
-             GetLastError());
+    fwprintf(stderr, L"ChaosLoader: Failed to allocate %lld bytes\n",
+             fileSize.QuadPart);
     CloseHandle(hFile);
     return STATUS_NO_MEMORY;
   }
@@ -141,7 +90,7 @@ static NTSTATUS LoadFileIntoBuffer(_In_ LPCWSTR FilePath, _Out_ PVOID *Buffer,
   DWORD bytesRead = 0;
   if (!ReadFile(hFile, fileBuffer, (DWORD)fileSize.QuadPart, &bytesRead,
                 NULL)) {
-    fprintf(stderr, "ChaosLoader: Failed to read file (error %lu)\n",
+    fwprintf(stderr, L"ChaosLoader: Failed to read file (error %lu)\n",
              GetLastError());
     VirtualFree(fileBuffer, 0, MEM_RELEASE);
     CloseHandle(hFile);
@@ -157,12 +106,7 @@ static NTSTATUS LoadFileIntoBuffer(_In_ LPCWSTR FilePath, _Out_ PVOID *Buffer,
   return STATUS_SUCCESS;
 }
 
-#ifdef _WIN32
-int wmain(int argc, wchar_t *argv[])
-#else
-int main(int argc, char *argv[])
-#endif
-{
+int wmain(int argc, wchar_t *argv[]) {
   NTSTATUS status;
   HANDLE hDevice = INVALID_HANDLE_VALUE;
   PVOID kernelBuffer = NULL;
@@ -175,16 +119,17 @@ int main(int argc, char *argv[])
   UNREFERENCED_PARAMETER(argc);
   UNREFERENCED_PARAMETER(argv);
 
-  printf("ChaosLoader v0.1.0 - Chaos-Symbiose OS Loader\n");
-  printf("==============================================\n\n");
+  fwprintf(stdout, L"ChaosLoader v0.1.0 - Chaos-Symbiose OS Loader\n");
+  fwprintf(stdout, L"==============================================\n\n");
 
   // Step 1: Open the Symbiose Bridge driver
   hDevice = CreateFileW(SYMBIOSE_DRIVER_PATH, GENERIC_READ | GENERIC_WRITE, 0,
                         NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
   if (hDevice == INVALID_HANDLE_VALUE) {
-    printf("❌ Failed to open Symbiose Bridge driver\n");
-    printf("	 Ensure symbiose_bridge.sys is loaded.\n");
+    fwprintf(stderr, L"❌ Failed to open Symbiose Bridge driver (error %lu)\n",
+             GetLastError());
+    fwprintf(stderr, L"   Ensure symbiose_bridge.sys is loaded.\n");
     return 1;
   }
 
@@ -193,49 +138,47 @@ int main(int argc, char *argv[])
   ExpandEnvironmentStringsW(SYMBIOSE_CORE_DIR L"\\BZIMAGE", kernelPath,
                             MAX_PATH);
 
-  printf("📂 Loading kernel\n");
-  status =
-      LoadFileIntoBuffer((const void *)kernelPath, &kernelBuffer, &kernelSize);
+  fwprintf(stdout, L"📂 Loading kernel: %ls\n", kernelPath);
+  status = LoadFileIntoBuffer(kernelPath, &kernelBuffer, &kernelSize);
   if (!NT_SUCCESS(status)) {
-    printf("❌ Failed to load kernel (0x%08X)\n", status);
+    fwprintf(stderr, L"❌ Failed to load kernel (0x%08X)\n", status);
     goto cleanup;
   }
-  printf("	 ✅ Kernel loaded: %zu bytes\n", kernelSize);
+  fwprintf(stdout, L"   ✅ Kernel loaded: %zu bytes\n", kernelSize);
 
   // Step 3: Load CHAOS.RDZ
   WCHAR ramdiskPath[MAX_PATH];
   ExpandEnvironmentStringsW(SYMBIOSE_CORE_DIR L"\\CHAOS.RDZ", ramdiskPath,
                             MAX_PATH);
 
-  printf("📂 Loading ramdisk\n");
-  status = LoadFileIntoBuffer((const void *)ramdiskPath, &ramdiskBuffer,
-                              &ramdiskSize);
+  fwprintf(stdout, L"📂 Loading ramdisk: %ls\n", ramdiskPath);
+  status = LoadFileIntoBuffer(ramdiskPath, &ramdiskBuffer, &ramdiskSize);
   if (!NT_SUCCESS(status)) {
-    printf("❌ Failed to load ramdisk (0x%08X)\n", status);
+    fwprintf(stderr, L"❌ Failed to load ramdisk (0x%08X)\n", status);
     goto cleanup;
   }
-  printf("	 ✅ Ramdisk loaded: %zu bytes\n", ramdiskSize);
+  fwprintf(stdout, L"   ✅ Ramdisk loaded: %zu bytes\n", ramdiskSize);
 
   // Step 4: Initialize boot parameters
   // Fortification V: PID 1 Injection
-  printf("🔧 Initializing boot parameters\n");
+  fwprintf(stdout, L"🔧 Initializing boot parameters\n");
   status = BootParams_Init(&bootParams, kernelBuffer, kernelSize, ramdiskBuffer,
                            ramdiskSize);
   if (!NT_SUCCESS(status)) {
-    printf("❌ Failed to initialize boot params (0x%08X)\n", status);
+    fwprintf(stderr, L"❌ Failed to initialize boot params (0x%08X)\n", status);
     goto cleanup;
   }
 
   // Inject init parameter: init=/symbiose/hive_mind
   status = BootParams_SetCommandLine(&bootParams, "init=/symbiose/hive_mind");
   if (!NT_SUCCESS(status)) {
-    printf("❌ Failed to set init parameter (0x%08X)\n", status);
+    fwprintf(stderr, L"❌ Failed to set init parameter (0x%08X)\n", status);
     goto cleanup;
   }
-  printf("	 ✅ PID 1 set to: /symbiose/hive_mind\n");
+  fwprintf(stdout, L"   ✅ PID 1 set to: /symbiose/hive_mind\n");
 
   // Step 5: Send kernel and ramdisk to driver
-  printf("🚀 Sending payload to Symbiose Bridge driver\n");
+  fwprintf(stdout, L"🚀 Sending payload to Symbiose Bridge driver\n");
 
   SYMBIOSE_PAYLOAD payload = {0};
   payload.KernelBuffer = kernelBuffer;
@@ -246,12 +189,12 @@ int main(int argc, char *argv[])
 
   if (!DeviceIoControl(hDevice, IOCTL_SYMBIOSE_SEND_PAYLOAD, &payload,
                        sizeof(payload), NULL, 0, &bytesReturned, NULL)) {
-    printf("❌ IOCTL failed\n");
+    fwprintf(stderr, L"❌ IOCTL failed (error %lu)\n", GetLastError());
     goto cleanup;
   }
 
-  printf("✅ Payload sent successfully\n");
-  printf("⚠️  Chaos-OS is now running. Windows is suspended.\n");
+  fwprintf(stdout, L"✅ Payload sent successfully\n");
+  fwprintf(stdout, L"⚠️  Chaos-OS is now running. Windows is suspended.\n");
 
 cleanup:
   // PATTERN-015: Always cleanup

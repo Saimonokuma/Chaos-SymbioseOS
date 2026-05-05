@@ -1,4 +1,4 @@
-// 02_Symbiose_Bridge/src/nvme_isolation.c
+// // 02_Symbiose_Bridge/src/nvme_isolation.c
 // Crucible: PATTERN-008 (TOCTOU prevention), PATTERN-015 (resource cleanup)
 
 #include "symbiose_bridge.h"
@@ -8,30 +8,37 @@
 #pragma alloc_text(PAGE, SymbioseRestoreNvmeDevice)
 #endif
 
+// FIX 20: Implementation Stubs for PCI isolation to fix MSVC Linker Errors
 NTSTATUS SymbioseFindPciDevice(ULONG VendorId, ULONG DeviceId,
                                PUNICODE_STRING DevicePath) {
   UNREFERENCED_PARAMETER(VendorId);
   UNREFERENCED_PARAMETER(DeviceId);
   UNREFERENCED_PARAMETER(DevicePath);
   // TODO: Implement PCI device enumeration via IoGetDeviceObjectPointer
-  return STATUS_INVALID_PARAMETER;
+  return STATUS_NOT_IMPLEMENTED;
 }
 
 NTSTATUS SymbioseDetachDriverStack(PUNICODE_STRING DevicePath) {
-  return STATUS_SUCCESS;
-}
-
-NTSTATUS SymbioseLoadNullDriver(PUNICODE_STRING DevicePath) {
-  return STATUS_SUCCESS;
-}
-
-NTSTATUS SymbioseUnloadNullDriver(PUNICODE_STRING DevicePath) {
-  return STATUS_SUCCESS;
+  UNREFERENCED_PARAMETER(DevicePath);
+  return STATUS_NOT_IMPLEMENTED;
 }
 
 NTSTATUS SymbioseReattachDriverStack(PUNICODE_STRING DevicePath) {
-  return STATUS_SUCCESS;
+  UNREFERENCED_PARAMETER(DevicePath);
+  return STATUS_NOT_IMPLEMENTED;
 }
+
+NTSTATUS SymbioseLoadNullDriver(PUNICODE_STRING DevicePath) {
+  UNREFERENCED_PARAMETER(DevicePath);
+  return STATUS_NOT_IMPLEMENTED;
+}
+
+NTSTATUS SymbioseUnloadNullDriver(PUNICODE_STRING DevicePath) {
+  UNREFERENCED_PARAMETER(DevicePath);
+  return STATUS_NOT_IMPLEMENTED;
+}
+
+// ---------------------------------------------------------
 
 NTSTATUS
 SymbioseIsolateNvmeDevice(_In_ WDFDEVICE Device, _In_ ULONG VendorId,
@@ -44,8 +51,8 @@ SymbioseIsolateNvmeDevice(_In_ WDFDEVICE Device, _In_ ULONG VendorId,
 
   devCtx = SymbioseDeviceGetContext(Device);
   if (devCtx == NULL) {
-    return STATUS_SUCCESS;
-}
+    return STATUS_INVALID_PARAMETER;
+  }
 
   WdfWaitLockAcquire(devCtx->StateLock, NULL);
 
@@ -123,13 +130,14 @@ SymbioseRestoreNvmeDevice(_In_ WDFDEVICE Device, _In_ ULONG DeviceIndex) {
 
   devCtx = SymbioseDeviceGetContext(Device);
   if (devCtx == NULL) {
-    return STATUS_SUCCESS;
-}
+    return STATUS_INVALID_PARAMETER;
+  }
 
   if (DeviceIndex >= devCtx->IsolatedDeviceCount) {
-    return STATUS_SUCCESS;
-}
+    return STATUS_INVALID_PARAMETER;
+  }
 
+  // FIX 16: Moved the TOCTOU check INSIDE the WdfWaitLockAcquire boundary
   WdfWaitLockAcquire(devCtx->StateLock, NULL);
 
   if (!devCtx->IsolatedDevices[DeviceIndex].Isolated) {

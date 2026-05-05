@@ -1,4 +1,4 @@
-// 03_HiveMind_Orchestrator/OpenMosix_2026/src/openmosix_tensor.h
+// // 03_HiveMind_Orchestrator/OpenMosix_2026/src/openmosix_tensor.h
 // Crucible: PATTERN-008 (Race conditions in memory locking)
 
 #ifndef OPENMOSIX_TENSOR_H
@@ -12,7 +12,6 @@
 #ifdef __linux__
 #include <sys/mman.h>
 #endif
-#include <sys/types.h>
 
 #define OMOSIX_PORT 723
 #define MAX_TENSOR_DIM 8192
