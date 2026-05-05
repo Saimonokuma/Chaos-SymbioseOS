@@ -53,6 +53,8 @@ typedef struct _WDF_DRIVER_CONFIG {
 #define FILE_DEVICE_UNKNOWN 0x00000022
 #define METHOD_BUFFERED 0
 #define FILE_ANY_ACCESS 0
+#define POOL_FLAG_NON_PAGED 0x0000000000000040UI64
+#define POOL_FLAG_UNINITIALIZED 0x0000000000000002UI64
 #define CTL_CODE(DeviceType, Function, Method, Access)                         \
   (((DeviceType) << 16) | ((Access) << 14) | ((Function) << 2) | (Method))
 

@@ -46,8 +46,9 @@ VOID SymbioseIoctlHandler(_In_ WDFQUEUE Queue, _In_ WDFREQUEST Request,
     }
 
     // Safe allocation and copy to Non-Paged Pool
+    // Bolt: Use POOL_FLAG_UNINITIALIZED to prevent redundant zeroing since we overwrite the whole buffer
     kernelBuffer =
-        ExAllocatePool2(POOL_FLAG_NON_PAGED, payload->KernelSize, 'KnsS');
+        ExAllocatePool2(POOL_FLAG_NON_PAGED | POOL_FLAG_UNINITIALIZED, payload->KernelSize, 'KnsS');
     if (!kernelBuffer) {
       status = STATUS_NO_MEMORY;
       goto cleanup;
