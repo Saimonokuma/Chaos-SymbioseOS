@@ -43,12 +43,10 @@ typedef void VOID;
 
 typedef struct _WDF_DRIVER_CONFIG {
   void *EvtDriverDeviceAdd;
-  void *DriverUnloading;
+  void *EvtDriverUnload;
   void *EvtDriverContextCleanup;
 } WDF_DRIVER_CONFIG, *PWDF_DRIVER_CONFIG;
 
-#define MAKE_ULONGLONG(a, b, c)                                                \
-  (((ULONGLONG)(a) << 32) | ((ULONGLONG)(b) << 16) | (c))
 #define TRUE 1
 #define FALSE 0
 
@@ -117,20 +115,14 @@ typedef union _LARGE_INTEGER {
 
 #define SYMBIOSE_DEVICE_NAME L"\\Device\\SymbioseBridge"
 #define SYMBIOSE_DOS_NAME L"\\DosDevices\\SymbioseBridge"
-#define SYMBIOSE_DRIVER_VERSION MAKE_ULONGLONG(0, 1, 0) // 0.1.0
+// FIX 2: Replaced non-existent MAKE_ULONGLONG macro with explicit ULL
+#define SYMBIOSE_DRIVER_VERSION 0x0000000100000000ULL
 
 #define SYMBIOSE_ACPI_NOTIFY_SHUTDOWN 0x01
 #define SYMBIOSE_ACPI_NOTIFY_SUSPEND 0x02
 #define SYMBIOSE_ACPI_NOTIFY_RESUME 0x03
 
-#define IOCTL_SYMBIOSE_SEND_SHUTDOWN                                           \
-  CTL_CODE(FILE_DEVICE_UNKNOWN, 0x800, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_SYMBIOSE_RECV_ACK                                                \
-  CTL_CODE(FILE_DEVICE_UNKNOWN, 0x801, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_SYMBIOSE_GET_STATUS                                              \
-  CTL_CODE(FILE_DEVICE_UNKNOWN, 0x802, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_SYMBIOSE_SET_NVME_ISOLATION                                      \
-  CTL_CODE(FILE_DEVICE_UNKNOWN, 0x803, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#include "../inc/symbiose_ioctls.h"
 
 #define SYMBIOSE_ACK_TIMEOUT_MS 30000
 
@@ -178,6 +170,11 @@ typedef struct _SYMBIOSE_DEVICE_CONTEXT {
 #ifdef _WIN32
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(SYMBIOSE_DEVICE_CONTEXT,
                                    SymbioseDeviceGetContext)
+#else
+static inline SYMBIOSE_DEVICE_CONTEXT* SymbioseDeviceGetContext(WDFDEVICE device) {
+  static SYMBIOSE_DEVICE_CONTEXT ctx;
+  return &ctx;
+}
 #endif
 
 NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath);

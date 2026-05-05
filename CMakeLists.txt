@@ -17,6 +17,7 @@ add_subdirectory(02_Symbiose_Bridge)
 add_subdirectory(03_HiveMind_Orchestrator/ChaosLoader)
 add_subdirectory(03_HiveMind_Orchestrator/IRCd_Neural_Bus)
 add_subdirectory(03_HiveMind_Orchestrator/VFS_Storage_Manager)
+add_subdirectory(03_HiveMind_Orchestrator/OpenMosix_2026)
 
 # Testing
 enable_testing()

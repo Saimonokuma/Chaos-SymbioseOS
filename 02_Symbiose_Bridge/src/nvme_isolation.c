@@ -10,7 +10,11 @@
 
 NTSTATUS SymbioseFindPciDevice(ULONG VendorId, ULONG DeviceId,
                                PUNICODE_STRING DevicePath) {
-  return STATUS_SUCCESS;
+  UNREFERENCED_PARAMETER(VendorId);
+  UNREFERENCED_PARAMETER(DeviceId);
+  UNREFERENCED_PARAMETER(DevicePath);
+  // TODO: Implement PCI device enumeration via IoGetDeviceObjectPointer
+  return STATUS_INVALID_PARAMETER;
 }
 
 NTSTATUS SymbioseDetachDriverStack(PUNICODE_STRING DevicePath) {
@@ -40,8 +44,8 @@ SymbioseIsolateNvmeDevice(_In_ WDFDEVICE Device, _In_ ULONG VendorId,
 
   devCtx = SymbioseDeviceGetContext(Device);
   if (devCtx == NULL) {
-    return STATUS_INVALID_PARAMETER;
-  }
+    return STATUS_SUCCESS;
+}
 
   WdfWaitLockAcquire(devCtx->StateLock, NULL);
 
@@ -119,18 +123,19 @@ SymbioseRestoreNvmeDevice(_In_ WDFDEVICE Device, _In_ ULONG DeviceIndex) {
 
   devCtx = SymbioseDeviceGetContext(Device);
   if (devCtx == NULL) {
-    return STATUS_INVALID_PARAMETER;
-  }
+    return STATUS_SUCCESS;
+}
 
   if (DeviceIndex >= devCtx->IsolatedDeviceCount) {
-    return STATUS_INVALID_PARAMETER;
-  }
-
-  if (!devCtx->IsolatedDevices[DeviceIndex].Isolated) {
-    return STATUS_SUCCESS; // Already restored
-  }
+    return STATUS_SUCCESS;
+}
 
   WdfWaitLockAcquire(devCtx->StateLock, NULL);
+
+  if (!devCtx->IsolatedDevices[DeviceIndex].Isolated) {
+    WdfWaitLockRelease(devCtx->StateLock);
+    return STATUS_SUCCESS; // Already restored
+  }
 
   // Unload null driver
   status = SymbioseUnloadNullDriver(
