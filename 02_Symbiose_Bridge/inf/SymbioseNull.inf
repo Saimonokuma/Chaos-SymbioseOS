@@ -1,4 +1,4 @@
-; 02_Symbiose_Bridge/inf/SymbioseNull.inf
+; ; 02_Symbiose_Bridge/inf/SymbioseNull.inf
 ; Crucible: PATTERN-005 (no hardcoded paths in deployment)
 ; Hardware Airlock - Null driver for isolated NVMe and GPU devices
 
@@ -39,9 +39,9 @@ AddService=SymbioseNull,,SymbioseNull_Service
 
 [SymbioseNull_Service]
 DisplayName=%ServiceDesc%
-ServiceType=1				; SERVICE_KERNEL_DRIVER
-StartType=3					; SERVICE_DEMAND_START
-ErrorControl=1				; SERVICE_ERROR_NORMAL
+ServiceType=1               ; SERVICE_KERNEL_DRIVER
+StartType=3                 ; SERVICE_DEMAND_START
+ErrorControl=1              ; SERVICE_ERROR_NORMAL
 ServiceBinary=%12%\symbiose_null.sys
 
 [Strings]

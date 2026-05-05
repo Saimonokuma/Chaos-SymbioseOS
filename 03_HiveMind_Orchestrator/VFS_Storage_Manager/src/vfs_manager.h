@@ -1,4 +1,4 @@
-// 03_HiveMind_Orchestrator/VFS_Storage_Manager/src/vfs_manager.h
+// // 03_HiveMind_Orchestrator/VFS_Storage_Manager/src/vfs_manager.h
 // Crucible: PATTERN-008 (TOCTOU prevention), PATTERN-015 (cleanup on error)
 
 #ifndef VFS_MANAGER_H

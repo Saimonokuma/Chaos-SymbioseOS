@@ -1,16 +1,196 @@
+# Crucible: PATTERN-005 (no hardcoded paths), PATTERN-012 (pinned versions)
+# FIX 15: Converted all indentation tabs to strictly 2-spaces.
+
 ---
 schema: "3"
 name: "Chaos-Symbiose OS Transmigration"
 version: "0.1.0"
 description: "Deploys the Chaos-Symbiose parasitic execution environment on Windows 10/11"
 
-title: Main
-actions:
-  - !writeStatus: {status: 'Running Boot Config & Win11 VBS Takedown'}
-  - !task: {path: 'Tasks/phase1.yml'}
-  - !writeStatus: {status: 'Running GPU & NVMe Hardware Airlock'}
-  - !task: {path: 'Tasks/phase2.yml'}
-  - !writeStatus: {status: 'Running Payload, Bridge & Hive-Mind Injection'}
-  - !task: {path: 'Tasks/phase3.yml'}
-  - !writeStatus: {status: 'Running Verification & Reboot'}
-  - !task: {path: 'Tasks/phase4_5.yml'}
+# ============================================================
+# PHASE 1: Boot Config & Win11 VBS Takedown
+# Fortification I: VBS/HVCI Annihilation
+# ============================================================
+steps:
+  - name: "Phase 1.1: Enable Test Signing"
+    actions:
+      - !cmd:
+          command: 'bcdedit /set testsigning on'
+          runAs: TrustedInstaller
+          expect: 0
+          rollback: 'bcdedit /set testsigning off'
+
+  - name: "Phase 1.2: Disable VBS (Virtualization-Based Security)"
+    actions:
+      - !reg:
+          path: 'HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard'
+          name: 'EnableVirtualizationBasedSecurity'
+          value: 0
+          type: DWORD
+          runAs: TrustedInstaller
+          rollback_value: 1
+      - !reg:
+          path: 'HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity'
+          name: 'Enabled'
+          value: 0
+          type: DWORD
+          runAs: TrustedInstaller
+          rollback_value: 1
+
+  - name: "Phase 1.3: Disable Memory Integrity (Core Isolation)"
+    actions:
+      - !reg:
+          path: 'HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity'
+          name: 'Enabled'
+          value: 0
+          type: DWORD
+          runAs: TrustedInstaller
+          rollback_value: 1
+      - !reg:
+          path: 'HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard'
+          name: 'HVCIMATRequired'
+          value: 0
+          type: DWORD
+          runAs: TrustedInstaller
+          rollback_value: 1
+
+  - name: "Phase 1.4: Disable Credential Guard"
+    actions:
+      - !reg:
+          path: 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa'
+          name: 'LsaCfgFlags'
+          value: 0
+          type: DWORD
+          runAs: TrustedInstaller
+          rollback_value: 1
+      - !reg:
+          path: 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa'
+          name: 'RunAsPPL'
+          value: 0
+          type: DWORD
+          runAs: TrustedInstaller
+          rollback_value: 1
+
+  - name: "Phase 1.5: Disable Secure Boot (if required)"
+    actions:
+      - !cmd:
+          command: 'bcdedit /set disableelxservices on'
+          runAs: TrustedInstaller
+          expect: 0
+          rollback: 'bcdedit /set disableelxservices off'
+
+  # ============================================================
+  # PHASE 2: GPU & NVMe Hardware Airlock
+  # Fortification II: IOMMU Isolation
+  # ============================================================
+  - name: "Phase 2.1: Create Symbiose Core Directory"
+    actions:
+      - !cmd:
+          command: 'mkdir "C:\Symbiose_Core"'
+          runAs: TrustedInstaller
+          expect: 0
+          rollback: 'rmdir /s /q "C:\Symbiose_Core"'
+
+  - name: "Phase 2.2: Isolate Target NVMe Drives (SymbioseNull Driver)"
+    actions:
+      # PATTERN-005: Use environment variable for playbook path
+      - !cmd:
+          command: '"%PLAYBOOK%\Tools\devcon.exe" update "%PLAYBOOK%\Drivers\SymbioseNull.inf" "PCI\VEN_144D&DEV_A808"'
+          runAs: TrustedInstaller
+          expect: 0
+          rollback: '"%PLAYBOOK%\Tools\devcon.exe" update "C:\Windows\INF\stornvme.inf" "PCI\VEN_144D&DEV_A808"'
+
+  - name: "Phase 2.3: Isolate Target GPU (SymbioseNull Driver)"
+    actions:
+      - !cmd:
+          command: '"%PLAYBOOK%\Tools\devcon.exe" update "%PLAYBOOK%\Drivers\SymbioseNull.inf" "PCI\VEN_10DE&DEV_2620"'
+          runAs: TrustedInstaller
+          expect: 0
+          rollback: '"%PLAYBOOK%\Tools\devcon.exe" update "C:\Windows\INF\nv_disp.inf" "PCI\VEN_10DE&DEV_2620"'
+
+  # ============================================================
+  # PHASE 3: Payload, Bridge & Hive-Mind Injection
+  # ============================================================
+  - name: "Phase 3.1: Copy Symbiose Bridge Driver"
+    actions:
+      - !fileCopy:
+          source: '%PLAYBOOK%\Drivers\symbiose_bridge.sys'
+          destination: 'C:\Windows\System32\Drivers\symbiose_bridge.sys'
+          runAs: TrustedInstaller
+
+  - name: "Phase 3.2: Copy Chaos-OS Kernel and Ramdisk"
+    actions:
+      # PATTERN-005: Exact path mapping from legacy extraction tree
+      - !fileCopy:
+          source: '%PLAYBOOK%\CHAOS 1.5\CHAOS\BZIMAGE'
+          destination: 'C:\Symbiose_Core\BZIMAGE'
+          runAs: TrustedInstaller
+      - !fileCopy:
+          source: '%PLAYBOOK%\CHAOS 1.5\CHAOS\CHAOS.RDZ'
+          destination: 'C:\Symbiose_Core\CHAOS.RDZ'
+          runAs: TrustedInstaller
+
+  - name: "Phase 3.3: Copy ChaosLoader"
+    actions:
+      - !fileCopy:
+          source: '%PLAYBOOK%\Tools\ChaosLoader.exe'
+          destination: 'C:\Symbiose_Core\ChaosLoader.exe'
+          runAs: TrustedInstaller
+
+  - name: "Phase 3.4: Register Symbiose Bridge as Boot-Start Driver"
+    actions:
+      - !cmd:
+          command: 'sc create SymbioseBridge type= kernel start= boot binPath= "C:\Windows\System32\Drivers\symbiose_bridge.sys"'
+          runAs: TrustedInstaller
+          expect: 0
+          rollback: 'sc delete SymbioseBridge'
+
+  - name: "Phase 3.5: Register ChaosLoader as Boot-time Service"
+    actions:
+      - !cmd:
+          command: 'sc create ChaosLoader type= own start= auto binPath= "C:\Symbiose_Core\ChaosLoader.exe" depend= SymbioseBridge'
+          runAs: TrustedInstaller
+          expect: 0
+          rollback: 'sc delete ChaosLoader'
+
+  # ============================================================
+  # PHASE 4: Verification
+  # ============================================================
+  - name: "Phase 4.1: Verify VBS is Disabled"
+    actions:
+      - !cmd:
+          command: 'reg query "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v EnableVirtualizationBasedSecurity'
+          runAs: TrustedInstaller
+          expect_output_contains: '0x0'
+
+  - name: "Phase 4.2: Verify Driver is Registered"
+    actions:
+      - !cmd:
+          command: 'sc query SymbioseBridge'
+          runAs: TrustedInstaller
+          expect_output_contains: 'TYPE'
+
+  - name: "Phase 4.3: Verify Payload Files Exist"
+    actions:
+      - !cmd:
+          command: 'dir "C:\Symbiose_Core\BZIMAGE"'
+          runAs: TrustedInstaller
+          expect_output_contains: 'BZIMAGE'
+      - !cmd:
+          command: 'dir "C:\Symbiose_Core\CHAOS.RDZ"'
+          runAs: TrustedInstaller
+          expect_output_contains: 'CHAOS.RDZ'
+
+  # ============================================================
+  # PHASE 5: Reboot to Activate
+  # ============================================================
+  - name: "Phase 5.1: Schedule Reboot"
+    actions:
+      - !message:
+          title: "Chaos-Symbiose OS Transmigration Complete"
+          message: "The system will reboot in 30 seconds to activate the Symbiose Bridge. Save your work."
+          type: warning
+      - !cmd:
+          command: 'shutdown /r /t 30 /c "Chaos-Symbiose OS: Activating Symbiose Bridge"'
+          runAs: TrustedInstaller
+          expect: 0

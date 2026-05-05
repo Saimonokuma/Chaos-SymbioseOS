@@ -1,16 +1,11 @@
+// // 02_Symbiose_Bridge/inc/symbiose_ioctls.h
+// FIX 23: Shared definitions between Ring-0 driver and Ring-3 ChaosLoader
+
 #ifndef SYMBIOSE_IOCTLS_H
 #define SYMBIOSE_IOCTLS_H
 
 #ifdef _WIN32
 #include <windows.h>
-#else
-#define FILE_DEVICE_UNKNOWN 0x00000022
-#define METHOD_BUFFERED 0
-#define FILE_ANY_ACCESS 0
-#define CTL_CODE(DeviceType, Function, Method, Access)                         \
-  (((DeviceType) << 16) | ((Access) << 14) | ((Function) << 2) | (Method))
-typedef void *PVOID;
-typedef size_t SIZE_T;
 #endif
 
 // LLM Communication IOCTLs

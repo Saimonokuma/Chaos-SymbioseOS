@@ -1,4 +1,4 @@
-// 03_HiveMind_Orchestrator/IRCd_Neural_Bus/src/symbiose_ircd.h
+// // 03_HiveMind_Orchestrator/IRCd_Neural_Bus/src/symbiose_ircd.h
 // Crucible: PATTERN-004 (no unquoted vars), PATTERN-010 (no shell injection)
 
 #ifndef SYMBIOSE_IRCD_H

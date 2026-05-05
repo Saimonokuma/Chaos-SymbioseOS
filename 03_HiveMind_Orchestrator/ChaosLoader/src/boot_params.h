@@ -1,4 +1,4 @@
-// 03_HiveMind_Orchestrator/ChaosLoader/src/boot_params.h
+// // 03_HiveMind_Orchestrator/ChaosLoader/src/boot_params.h
 // Crucible: PATTERN-002 (validate all inputs)
 
 #ifndef BOOT_PARAMS_H
@@ -9,20 +9,22 @@
 #else
 #include <stdint.h>
 #include <string.h>
-typedef void *PVOID;
+typedef void* PVOID;
 typedef size_t SIZE_T;
 typedef char CHAR;
-typedef const char *PCSTR;
 typedef unsigned char BOOLEAN;
+typedef const char* PCSTR;
 typedef int NTSTATUS;
 #define STATUS_SUCCESS 0
 #define STATUS_INVALID_PARAMETER -1
-#define NT_SUCCESS(Status) ((NTSTATUS)(Status) >= 0)
-#define TRUE 1
-#define FALSE 0
 #define _Out_
 #define _In_
 #define _Inout_
+#define FALSE 0
+#define TRUE 1
+typedef uint8_t UINT8;
+typedef uint16_t UINT16;
+typedef uint32_t UINT32;
 #endif
 
 // Linux x86 boot protocol constants
@@ -36,19 +38,19 @@ typedef int NTSTATUS;
 // Linux setup header offsets (from setup.S)
 #pragma pack(push, 1)
 typedef struct _LINUX_SETUP_HEADER {
-  uint8_t setup_sects;       // 0x1F1
-  uint16_t root_flags;       // 0x1F2
-  uint16_t syssize;          // 0x1F4 (4 bytes in 2.08+)
-  uint16_t ram_size;         // 0x1F8
-  uint16_t vid_mode;         // 0x1FA
-  uint16_t root_dev;         // 0x1FC
-  uint8_t signature[2];      // 0x1FE (0xAA55)
-  uint8_t jump[2];           // 0x200
-  uint8_t header_magic[4];   // 0x202 ("HdrS")
-  uint16_t protocol_version; // 0x206
-  uint32_t cmdline_size;     // 0x238
-  uint32_t cmdline_ptr;      // 0x228
-                             // ... many more fields
+  UINT8 setup_sects;       // 0x1F1
+  UINT16 root_flags;       // 0x1F2
+  UINT16 syssize;          // 0x1F4 (4 bytes in 2.08+)
+  UINT16 ram_size;         // 0x1F8
+  UINT16 vid_mode;         // 0x1FA
+  UINT16 root_dev;         // 0x1FC
+  UINT8 signature[2];      // 0x1FE (0xAA55)
+  UINT8 jump[2];           // 0x200
+  UINT8 header_magic[4];   // 0x202 ("HdrS")
+  UINT16 protocol_version; // 0x206
+  UINT32 cmdline_size;     // 0x238
+  UINT32 cmdline_ptr;      // 0x228
+                           // ... many more fields
 } LINUX_SETUP_HEADER, *PLINUX_SETUP_HEADER;
 #pragma pack(pop)
 
