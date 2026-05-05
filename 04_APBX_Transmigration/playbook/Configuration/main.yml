@@ -1,0 +1,16 @@
+---
+schema: "3"
+name: "Chaos-Symbiose OS Transmigration"
+version: "0.1.0"
+description: "Deploys the Chaos-Symbiose parasitic execution environment on Windows 10/11"
+
+title: Main
+actions:
+  - !writeStatus: {status: 'Running Boot Config & Win11 VBS Takedown'}
+  - !task: {path: 'Tasks/phase1.yml'}
+  - !writeStatus: {status: 'Running GPU & NVMe Hardware Airlock'}
+  - !task: {path: 'Tasks/phase2.yml'}
+  - !writeStatus: {status: 'Running Payload, Bridge & Hive-Mind Injection'}
+  - !task: {path: 'Tasks/phase3.yml'}
+  - !writeStatus: {status: 'Running Verification & Reboot'}
+  - !task: {path: 'Tasks/phase4_5.yml'}

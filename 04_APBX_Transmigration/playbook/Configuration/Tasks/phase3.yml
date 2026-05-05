@@ -1,0 +1,33 @@
+title: Phase 3
+actions:
+  - !file:
+      source: '%PLAYBOOK%\Executables\Drivers\symbiose_bridge.sys'
+      destination: 'C:\Windows\System32\Drivers\symbiose_bridge.sys'
+      runAs: TrustedInstaller
+
+  - !file:
+      source: '%PLAYBOOK%\Executables\CHAOS\BZIMAGE'
+      destination: 'C:\Symbiose_Core\BZIMAGE'
+      runAs: TrustedInstaller
+
+  - !file:
+      source: '%PLAYBOOK%\Executables\CHAOS\CHAOS.RDZ'
+      destination: 'C:\Symbiose_Core\CHAOS.RDZ'
+      runAs: TrustedInstaller
+
+  - !file:
+      source: '%PLAYBOOK%\Executables\Tools\ChaosLoader.exe'
+      destination: 'C:\Symbiose_Core\ChaosLoader.exe'
+      runAs: TrustedInstaller
+
+  - !cmd:
+      command: 'sc create SymbioseBridge type= kernel start= boot binPath= "C:\Windows\System32\Drivers\symbiose_bridge.sys"'
+      runAs: TrustedInstaller
+      expect: 0
+      rollback: 'sc delete SymbioseBridge'
+
+  - !cmd:
+      command: 'sc create ChaosLoader type= own start= auto binPath= "C:\Symbiose_Core\ChaosLoader.exe" depend= SymbioseBridge'
+      runAs: TrustedInstaller
+      expect: 0
+      rollback: 'sc delete ChaosLoader'

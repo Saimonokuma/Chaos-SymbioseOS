@@ -1,0 +1,29 @@
+title: Phase 4 & 5
+actions:
+  - !cmd:
+      command: 'reg query "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v EnableVirtualizationBasedSecurity'
+      runAs: TrustedInstaller
+      expect_output_contains: '0x0'
+
+  - !cmd:
+      command: 'sc query SymbioseBridge'
+      runAs: TrustedInstaller
+      expect_output_contains: 'TYPE'
+
+  - !cmd:
+      command: 'dir "C:\Symbiose_Core\BZIMAGE"'
+      runAs: TrustedInstaller
+      expect_output_contains: 'BZIMAGE'
+
+  - !cmd:
+      command: 'dir "C:\Symbiose_Core\CHAOS.RDZ"'
+      runAs: TrustedInstaller
+      expect_output_contains: 'CHAOS.RDZ'
+
+  - !writeStatus:
+      status: "Chaos-Symbiose OS Transmigration Complete"
+
+  - !cmd:
+      command: 'shutdown /r /t 30 /c "Chaos-Symbiose OS: Activating Symbiose Bridge"'
+      runAs: TrustedInstaller
+      expect: 0
