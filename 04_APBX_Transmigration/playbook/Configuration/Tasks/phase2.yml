@@ -1,0 +1,19 @@
+title: Phase 2
+actions:
+  - !cmd:
+      command: 'mkdir "C:\Symbiose_Core"'
+      runAs: TrustedInstaller
+      expect: 0
+      rollback: 'rmdir /s /q "C:\Symbiose_Core"'
+
+  - !cmd:
+      command: '"%PLAYBOOK%\Executables\Tools\devcon.exe" update "%PLAYBOOK%\Executables\Drivers\SymbioseNull.inf" "PCI\VEN_144D&DEV_A808"'
+      runAs: TrustedInstaller
+      expect: 0
+      rollback: '"%PLAYBOOK%\Executables\Tools\devcon.exe" update "C:\Windows\INF\stornvme.inf" "PCI\VEN_144D&DEV_A808"'
+
+  - !cmd:
+      command: '"%PLAYBOOK%\Executables\Tools\devcon.exe" update "%PLAYBOOK%\Executables\Drivers\SymbioseNull.inf" "PCI\VEN_10DE&DEV_2620"'
+      runAs: TrustedInstaller
+      expect: 0
+      rollback: '"%PLAYBOOK%\Executables\Tools\devcon.exe" update "C:\Windows\INF\nv_disp.inf" "PCI\VEN_10DE&DEV_2620"'

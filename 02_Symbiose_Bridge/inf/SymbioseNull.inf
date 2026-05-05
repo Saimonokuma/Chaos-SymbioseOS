@@ -1,0 +1,52 @@
+; 02_Symbiose_Bridge/inf/SymbioseNull.inf
+; Crucible: PATTERN-005 (no hardcoded paths in deployment)
+; Hardware Airlock - Null driver for isolated NVMe and GPU devices
+
+[Version]
+Signature="$Windows NT$"
+Class=System
+ClassGuid={4D36E97D-E325-11CE-BFC1-08002BE10318}
+Provider=%ManufacturerName%
+DriverVer=01/24/2025,0.1.0.0
+CatalogFile=SymbioseNull.cat
+
+[DestinationDirs]
+DefaultDestDir=12  ; %windir%\system32\drivers
+
+[SourceDisksNames]
+1=%DiskName%,,,
+
+[SourceDisksFiles]
+symbiose_null.sys=1
+
+[Manufacturer]
+%ManufacturerName%=Standard,NTamd64
+
+[Standard.NTamd64]
+%SymbioseNvmeDeviceDesc%=SymbioseNull_Inst, PCI\VEN_144D&DEV_A808  ; Samsung PM9A3 NVMe
+%SymbioseNvmeDeviceDesc%=SymbioseNull_Inst, PCI\VEN_144D&DEV_A809  ; Samsung PM9A3 NVMe (alt)
+%SymbioseGpuDeviceDesc%=SymbioseNull_Inst, PCI\VEN_10DE&DEV_2620   ; NVIDIA RTX 4090
+%SymbioseGpuDeviceDesc%=SymbioseNull_Inst, PCI\VEN_10DE&DEV_2621   ; NVIDIA RTX 4090 (alt)
+
+[SymbioseNull_Inst.NT]
+CopyFiles=SymbioseNull_CopyFiles
+
+[SymbioseNull_CopyFiles]
+symbiose_null.sys
+
+[SymbioseNull_Inst.NT.Services]
+AddService=SymbioseNull,,SymbioseNull_Service
+
+[SymbioseNull_Service]
+DisplayName=%ServiceDesc%
+ServiceType=1				; SERVICE_KERNEL_DRIVER
+StartType=3					; SERVICE_DEMAND_START
+ErrorControl=1				; SERVICE_ERROR_NORMAL
+ServiceBinary=%12%\symbiose_null.sys
+
+[Strings]
+ManufacturerName="Chaos-Symbiose Project"
+DiskName="Chaos-Symbiose Installation Disk"
+SymbioseNvmeDeviceDesc="Symbiose NVMe Airlock (Null Driver)"
+SymbioseGpuDeviceDesc="Symbiose GPU Airlock (Null Driver)"
+ServiceDesc="Symbiose Null Driver - Hardware Airlock"

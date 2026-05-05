@@ -1,0 +1,31 @@
+# crucible.lock — Pinned tool versions for reproducible verification
+# Crucible: PATTERN-012 (pinned dependencies)
+
+[tools]
+cmake = "3.28.3"
+nasm = "2.16.01"
+gcc = "13.2.0"
+clang_format = "18.1.8"
+cppcheck = "2.14.0"
+shellcheck = "0.10.0"
+python = "3.12.4"
+qemu = "8.2.0"
+
+[wdk]
+version = "10.0.26100"
+ewdk_iso = "EWDK_26100.iso"
+
+[linux_kernel]
+version = "6.6.52"
+lts = true
+config = "symbiose_defconfig"
+
+[platforms]
+build = "ubuntu-22.04"
+target_windows = "windows-latest"
+target_baremetal = "x86_64-unknown-none"
+
+[ci]
+fail_fast = true
+cache = true
+parallel = true

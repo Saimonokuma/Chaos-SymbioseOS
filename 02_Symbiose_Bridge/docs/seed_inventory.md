@@ -1,0 +1,54 @@
+# CHAOS 1.5 Seed Inventory
+Generated: 2026-05-05T02:02:43Z
+
+- `./CHAOS 1.5/[BOOT]/Boot-NoEmul.img` | SHA256: `e37f3c48805b3a6fcda3faf8afb781f1a69e35fd50f88783a9599f658a706fd9` | Size: 2048B | Type: isolinux Loader (version 2.06)
+- `./CHAOS 1.5/CHAOS/MEMTEST` | SHA256: `741be27be9efa7fb597d9856f6d910aba2e30db51743d4e517d5d78ba3afff49` | Size: 84420B | Type: DOS/MBR boot sector
+- `./CHAOS 1.5/CHAOS/CHAOS.RDZ` | SHA256: `1cf55c3f843ab1ce7e879177d68073f7e6720273cb8010167571bc036c8839b5` | Size: 3003852B | Type: gzip compressed data, was "ssi-chaos(1.5)-[ro].img", last modified: Sun Aug 15 14:24:52 2004, max compression, from Unix, original size modulo 2^32 12582912
+- `./CHAOS 1.5/CHAOS/BZIMAGE` | SHA256: `b00d2df4603232250130d2c4a3ec0cc781cf2f3595aacf685a13773732b4bdd6` | Size: 2530690B | Type: Linux kernel x86 boot executable bzImage, version 2.4.26-om (root@itsec5) #2 SMP Sun Aug 15 21:24:00 EST 2004, RO-rootFS, root_dev 0X301, Normal VGA
+- `./CHAOS 1.5/AUTORUN.INF` | SHA256: `3e72a0450f402063a5510ff242715f255fad677995b7870cdd007b0906018261` | Size: 100B | Type: Microsoft Windows Autorun file
+- `./CHAOS 1.5/WEB/CREDITS/INDEX2.HTM` | SHA256: `720ee609002f5e4c903cebb9dd8716995a60f3c51c59568cfca477b708debe29` | Size: 6711B | Type: HTML document, ASCII text, with very long lines (389)
+- `./CHAOS 1.5/WEB/CREDITS/INDEX.HTM` | SHA256: `720ee609002f5e4c903cebb9dd8716995a60f3c51c59568cfca477b708debe29` | Size: 6711B | Type: HTML document, ASCII text, with very long lines (389)
+- `./CHAOS 1.5/WEB/INDEX.HTM` | SHA256: `b604ce04c3d0ca4ccb8509b213ef9a6ff0367a6c08b5d1257c6e6ad8208b1ee1` | Size: 4199B | Type: HTML document, ASCII text, with very long lines (385)
+- `./CHAOS 1.5/WEB/TYD/INDEX.HTM` | SHA256: `f068f1ede8c711dc0c59083f5eee09136fba89080c656f27a4e6f8f94a307cf7` | Size: 16440B | Type: HTML document, ASCII text, with very long lines (397)
+- `./CHAOS 1.5/WEB/TYD/INDEX8.HTM` | SHA256: `f068f1ede8c711dc0c59083f5eee09136fba89080c656f27a4e6f8f94a307cf7` | Size: 16440B | Type: HTML document, ASCII text, with very long lines (397)
+- `./CHAOS 1.5/WEB/NET/INDEX.HTM` | SHA256: `ef34a059ccbd6faadae3bdd42097df8cf582ac73148a78a38bbf7b35b60438e4` | Size: 6269B | Type: HTML document, ASCII text, with very long lines (399)
+- `./CHAOS 1.5/WEB/NET/INDEX6.HTM` | SHA256: `ef34a059ccbd6faadae3bdd42097df8cf582ac73148a78a38bbf7b35b60438e4` | Size: 6269B | Type: HTML document, ASCII text, with very long lines (399)
+- `./CHAOS 1.5/WEB/MAIN.WAV` | SHA256: `8f7192d76732e7f8fdd57178161d757cca8be482c3fb61c74f94f4ee3b1be2f7` | Size: 64044B | Type: RIFF (little-endian) data, WAVE audio, Microsoft PCM, 8 bit, mono 22050 Hz
+- `./CHAOS 1.5/WEB/INITD/INDEX5.HTM` | SHA256: `b13a9466b1093c3d6d6d771020dc04f16e8de848eb6cb178e04f8c83d4a14903` | Size: 8220B | Type: HTML document, ASCII text, with very long lines (377)
+- `./CHAOS 1.5/WEB/INITD/INDEX.HTM` | SHA256: `b13a9466b1093c3d6d6d771020dc04f16e8de848eb6cb178e04f8c83d4a14903` | Size: 8220B | Type: HTML document, ASCII text, with very long lines (377)
+- `./CHAOS 1.5/WEB/SECURITY/SCANS/INDEX.HTM` | SHA256: `587d574aa5a8fcc849adb4ab24e07a323ee5a1710e004835ff44777a68afb414` | Size: 8504B | Type: HTML document, ASCII text, with very long lines (452)
+- `./CHAOS 1.5/WEB/SECURITY/SCANS/INDEX7.HTM` | SHA256: `587d574aa5a8fcc849adb4ab24e07a323ee5a1710e004835ff44777a68afb414` | Size: 8504B | Type: HTML document, ASCII text, with very long lines (452)
+- `./CHAOS 1.5/WEB/HOWTO/INDEX.HTM` | SHA256: `b66718e38fd0f987f56bff288179d79eb0464de0ba9bbcd0e5174434c6e384d4` | Size: 41673B | Type: HTML document, ASCII text, with very long lines (392)
+- `./CHAOS 1.5/WEB/HOWTO/INDEX3.HTM` | SHA256: `b66718e38fd0f987f56bff288179d79eb0464de0ba9bbcd0e5174434c6e384d4` | Size: 41673B | Type: HTML document, ASCII text, with very long lines (392)
+- `./CHAOS 1.5/WEB/HOWTO/REBOOT.TXT` | SHA256: `9324e86d5d1261fe3144e8f3d9d22aca58e9c402e29b82e404cbaaaf1ee81287` | Size: 2707B | Type: ASCII text
+- `./CHAOS 1.5/WEB/CRTNTYD/INDEX4.HTM` | SHA256: `7562821d4565a04a96db645fef2abe31b6301db605d187942366185e0b33e594` | Size: 6262B | Type: HTML document, ASCII text, with very long lines (384)
+- `./CHAOS 1.5/WEB/CRTNTYD/INDEX.HTM` | SHA256: `7562821d4565a04a96db645fef2abe31b6301db605d187942366185e0b33e594` | Size: 6262B | Type: HTML document, ASCII text, with very long lines (384)
+- `./CHAOS 1.5/WEB/ABOUT/INDEX.HTM` | SHA256: `6384d685c355d4f3dc48a9ebe1317093d1651590fc8da16078c38889c8ac6a94` | Size: 15017B | Type: HTML document, ASCII text, with very long lines (388)
+- `./CHAOS 1.5/WEB/ABOUT/WALLET.HTM` | SHA256: `9a122aa5f642589f7f1ab20fbaed5f77032dd2f928d110344f942858b547b728` | Size: 5442B | Type: HTML document, ASCII text, with very long lines (416)
+- `./CHAOS 1.5/WEB/ABOUT/WALLET1.JPG` | SHA256: `b737895ff03765257f1cfc49ab7a578e71d893c34ab51e322af3363ce8282dfc` | Size: 30032B | Type: JPEG image data, JFIF standard 1.02, resolution (DPI), density 72x72, segment length 16, Exif Standard: [TIFF image data, big-endian, direntries=7, orientation=upper-left, xresolution=98, yresolution=106, resolutionunit=2, software=Adobe Photoshop 7.0, datetime=2004:06:29 23:40:42], baseline, precision 8, 239x239, components 3
+- `./CHAOS 1.5/WEB/ABOUT/WALLET3.JPG` | SHA256: `f243a9e6ddcacc0a1a20115d181a06b5a0f50b828b3b4bf3e176fc156fe1724a` | Size: 31916B | Type: JPEG image data, JFIF standard 1.02, resolution (DPI), density 72x72, segment length 16, Exif Standard: [TIFF image data, big-endian, direntries=7, orientation=upper-left, xresolution=98, yresolution=106, resolutionunit=2, software=Adobe Photoshop 7.0, datetime=2004:06:29 23:40:15], baseline, precision 8, 239x239, components 3
+- `./CHAOS 1.5/WEB/ABOUT/WALLET2.JPG` | SHA256: `3b7e5f66e4f21bb138e4e055ed8f3add8092b2e0995d88affc9be8d085110e6f` | Size: 28584B | Type: JPEG image data, JFIF standard 1.02, resolution (DPI), density 72x72, segment length 16, Exif Standard: [TIFF image data, big-endian, direntries=7, orientation=upper-left, xresolution=98, yresolution=106, resolutionunit=2, software=Adobe Photoshop 7.0, datetime=2004:06:29 23:40:27], baseline, precision 8, 239x239, components 3
+- `./CHAOS 1.5/WEB/ABOUT/WALLET4.JPG` | SHA256: `5365116dbb77bcca57c41556253e1c90cf1e6b843b407735c5be8bc62ad13ea3` | Size: 33622B | Type: JPEG image data, JFIF standard 1.02, resolution (DPI), density 72x72, segment length 16, Exif Standard: [TIFF image data, big-endian, direntries=7, orientation=upper-left, xresolution=98, yresolution=106, resolutionunit=2, software=Adobe Photoshop 7.0, datetime=2004:06:29 23:40:04], baseline, precision 8, 239x239, components 3
+- `./CHAOS 1.5/WEB/INDEX9.HTM` | SHA256: `b604ce04c3d0ca4ccb8509b213ef9a6ff0367a6c08b5d1257c6e6ad8208b1ee1` | Size: 4199B | Type: HTML document, ASCII text, with very long lines (385)
+- `./CHAOS 1.5/README` | SHA256: `15c0817e7048bc832d067b065e7c86521ecff2fcbfb63cd71328add50c258823` | Size: 457B | Type: ASCII text
+- `./CHAOS 1.5/README.TXT` | SHA256: `a09158c034bbd7f6b6a6094b03dc60ffa5deac52addce85af80b70178930f63a` | Size: 471B | Type: ASCII text, with CRLF line terminators
+- `./CHAOS 1.5/BOOT/PXE_ZFD4.CFG` | SHA256: `3fc8be1f464c991e73d20f6ac417a2c43adb5d5afdb636cd5d1d666751d7c438` | Size: 858B | Type: ASCII text, with CRLF line terminators
+- `./CHAOS 1.5/BOOT/F4_BOOT.TXT` | SHA256: `e6c2a246e6c8556078831800ffec07938660e6a85f65338bf0441c3e394a1a44` | Size: 1418B | Type: data
+- `./CHAOS 1.5/BOOT/F2_ABOUT.TXT` | SHA256: `07558dec9e8254b691ecfffdf791a0212b1f28fad4b8f4ae6cfa79b85a493be0` | Size: 1475B | Type: data
+- `./CHAOS 1.5/BOOT/PXELINUX.0` | SHA256: `ff466eac8ccaacea6986245461ef244eea727f79507bb3864dead04ae787acb5` | Size: 11156B | Type: pxelinux loader (version 2.13 or older)
+- `./CHAOS 1.5/BOOT/F1_MAIN.TXT` | SHA256: `311b56db0f786ff91cc77546e49aaaa8dc23f30d3b3c6a549dcd090949e3beb0` | Size: 1332B | Type: data
+- `./CHAOS 1.5/BOOT/F6_COPY.TXT` | SHA256: `c403f9242aacf6bb0d52171afdd5d0745a37ae4a5eecf4242f6d836cdd91d755` | Size: 1507B | Type: data
+- `./CHAOS 1.5/BOOT/F3_HWREQ.TXT` | SHA256: `c35cbf12bcf0475720f3c38a1473a6df0d23c1f55f65d152009335eb77eb22d6` | Size: 1377B | Type: data
+- `./CHAOS 1.5/BOOT/PXELINUX.CFG/DEFAULT` | SHA256: `cae52b702350538f01750592d6ea4a20a5915c44d47a33ae80fec3720b8e07c0` | Size: 647B | Type: ASCII text, with CRLF line terminators
+- `./CHAOS 1.5/BOOT/F5_IP.TXT` | SHA256: `9093c99104dbe63679d6a2febb0595536c86444055f61d79feec775166328d23` | Size: 1506B | Type: data
+- `./CHAOS 1.5/BOOT/ISOLINUX/F4_BOOT.TXT` | SHA256: `e6c2a246e6c8556078831800ffec07938660e6a85f65338bf0441c3e394a1a44` | Size: 1418B | Type: data
+- `./CHAOS 1.5/BOOT/ISOLINUX/F2_ABOUT.TXT` | SHA256: `07558dec9e8254b691ecfffdf791a0212b1f28fad4b8f4ae6cfa79b85a493be0` | Size: 1475B | Type: data
+- `./CHAOS 1.5/BOOT/ISOLINUX/BOOT.CAT` | SHA256: `ace599659e6b3592d2b7f0592b248e288121c3fa97b47d9c9e5366d4e0550300` | Size: 2048B | Type: data
+- `./CHAOS 1.5/BOOT/ISOLINUX/F1_MAIN.TXT` | SHA256: `5e66af961173645958b1a150a48cf94694e64f98a6e890f4f52f241edbed69f5` | Size: 1341B | Type: data
+- `./CHAOS 1.5/BOOT/ISOLINUX/F6_COPY.TXT` | SHA256: `c403f9242aacf6bb0d52171afdd5d0745a37ae4a5eecf4242f6d836cdd91d755` | Size: 1507B | Type: data
+- `./CHAOS 1.5/BOOT/ISOLINUX/F3_HWREQ.TXT` | SHA256: `c35cbf12bcf0475720f3c38a1473a6df0d23c1f55f65d152009335eb77eb22d6` | Size: 1377B | Type: data
+- `./CHAOS 1.5/BOOT/ISOLINUX/ISOLINUX.CFG` | SHA256: `21aaef773b388baaf4c2278024cd0a4b7361c0d9127d049018f0ad23ea7983bf` | Size: 2570B | Type: ASCII text
+- `./CHAOS 1.5/BOOT/ISOLINUX/ISOLINUX.BIN` | SHA256: `3d37570a492e617b41f419e831cb5dee4d9894b26a5f8a428177e7cebed82d88` | Size: 9428B | Type: isolinux Loader (version 2.06)
+- `./CHAOS 1.5/BOOT/ISOLINUX/F5_IP.TXT` | SHA256: `9093c99104dbe63679d6a2febb0595536c86444055f61d79feec775166328d23` | Size: 1506B | Type: data
+- `./CHAOS 1.5/COPYING.TXT` | SHA256: `19404e184cf45ec991b54e1e6f05f847ad8f13fee2a51f3a2d9a960c8f7cb26b` | Size: 18349B | Type: ASCII text, with CRLF line terminators
+- `./CHAOS 1.5/COPYING` | SHA256: `204d8eff92f95aac4df6c8122bc1505f468f3a901e5a4cc08940e0ede1938994` | Size: 18009B | Type: ASCII text
