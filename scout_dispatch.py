@@ -29,7 +29,7 @@ async def dispatch_to_scout(channel: str, task: dict) -> None:
         writer.write(msg)
         await writer.drain()
 
-        logger.info(f"Dispatched task to {channel} (Payload size: {len(msg)} bytes)")
+        logger.info("Dispatched task to %s (Payload size: %d bytes)", channel, len(msg))
 
         # Read acknowledgment or response
         # Using a timeout just for demonstration purposes
@@ -37,7 +37,7 @@ async def dispatch_to_scout(channel: str, task: dict) -> None:
             response = await asyncio.wait_for(
                 reader.readuntil(separator=b"\r\n"), timeout=2.0
             )
-            logger.info(f"Received from Hive Mind: {response.decode('utf-8').strip()}")
+            logger.info("Received from Hive Mind: %s", response.decode('utf-8').strip())
         except asyncio.TimeoutError:
             logger.info("No immediate response from Hive Mind.")
 

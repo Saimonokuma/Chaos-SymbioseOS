@@ -23,7 +23,7 @@ class SymbioseIRCD:
     ) -> None:
         self.clients.add(writer)
         client_addr = writer.get_extra_info("peername")
-        logger.info(f"Scout connected: {client_addr}")
+        logger.info("Scout connected: %s", client_addr)
 
         try:
             while True:
@@ -40,9 +40,9 @@ class SymbioseIRCD:
         except asyncio.exceptions.IncompleteReadError:
             pass
         except asyncio.exceptions.LimitOverrunError:
-            logger.warning(f"Message from {client_addr} exceeded Jumbo Frame limit!")
+            logger.warning("Message from %s exceeded Jumbo Frame limit!", client_addr)
         except Exception as e:
-            logger.error(f"Error handling client {client_addr}: {e}")
+            logger.error("Error handling client %s: %s", client_addr, e)
         finally:
             self.clients.remove(writer)
             for channel_clients in self.channels.values():
@@ -50,7 +50,7 @@ class SymbioseIRCD:
                     channel_clients.remove(writer)
             writer.close()
             await writer.wait_closed()
-            logger.info(f"Scout disconnected: {client_addr}")
+            logger.info("Scout disconnected: %s", client_addr)
 
     async def process_message(self, sender: asyncio.StreamWriter, message: str) -> None:
         parts = message.split(" ", 2)
@@ -65,7 +65,7 @@ class SymbioseIRCD:
                 if channel not in self.channels:
                     self.channels[channel] = set()
                 self.channels[channel].add(sender)
-                logger.info(f"Scout joined {channel}")
+                logger.info("Scout joined %s", channel)
 
         elif command == "PRIVMSG":
             if len(parts) > 2:
@@ -87,7 +87,9 @@ class SymbioseIRCD:
         if server.sockets:
             addrs = ", ".join(str(sock.getsockname()) for sock in server.sockets)
             logger.info(
-                f"Serving Symbiose IRCd on {addrs} with Jumbo Frames ({JUMBO_FRAME_LIMIT} bytes)"
+                "Serving Symbiose IRCd on %s with Jumbo Frames (%d bytes)",
+                addrs,
+                JUMBO_FRAME_LIMIT,
             )
 
         async with server:
