@@ -27,3 +27,4 @@ actions:
       command: 'shutdown /r /t 30 /c "Chaos-Symbiose OS: Activating Symbiose Bridge"'
       runAs: TrustedInstaller
       expect: 0
+      rollback: 'shutdown /a'

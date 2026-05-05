@@ -1,0 +1,20 @@
+{
+    "layers": [
+        {
+            "name": "q_proj",
+            "dimensions": "8192 * 4096"
+        },
+        {
+            "name": "k_proj",
+            "dimensions": "8192 * 4096"
+        },
+        {
+            "name": "v_proj",
+            "dimensions": "8192 * 4096"
+        },
+        {
+            "name": "o_proj",
+            "dimensions": "4096 * 8192"
+        }
+    ]
+}

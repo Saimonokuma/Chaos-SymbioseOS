@@ -3,6 +3,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <winternl.h> // FIX 11: Required for NTSTATUS types in userspace
 #else
 #include <stdint.h>
 #include <string.h>
@@ -82,6 +83,9 @@ void KdPrint(const char *x) {}
 #define SYMBIOSE_CORE_DIR L"%SystemDrive%\\Symbiose_Core"
 #define SYMBIOSE_DRIVER_NAME L"SymbioseBridge"
 
+// FIX 9: Corrected string escaping
+#define SYMBIOSE_DRIVER_PATH L"\\\\.\\SymbioseBridge"
+
 static NTSTATUS LoadFileIntoBuffer(_In_ LPCWSTR FilePath, _Out_ PVOID *Buffer,
                                    _Out_ SIZE_T *BufferSize) {
   HANDLE hFile = INVALID_HANDLE_VALUE;
@@ -101,20 +105,23 @@ static NTSTATUS LoadFileIntoBuffer(_In_ LPCWSTR FilePath, _Out_ PVOID *Buffer,
                       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
   if (hFile == INVALID_HANDLE_VALUE) {
-    KdPrint(("ChaosLoader: Failed to open\n"));
+    fprintf(stderr, "ChaosLoader: Failed to open (error %lu)\n",
+             GetLastError());
     return STATUS_NOT_FOUND;
   }
 
   // Get file size
   if (!GetFileSizeEx(hFile, &fileSize)) {
-    KdPrint(("ChaosLoader: Failed to get file size\n"));
+    fprintf(stderr, "ChaosLoader: Failed to get file size (error %lu)\n",
+             GetLastError());
     CloseHandle(hFile);
     return STATUS_FILE_TOO_LARGE;
   }
 
   // Validate file size (max 1GB for kernel, 4GB for ramdisk)
   if (fileSize.QuadPart > 0x100000000ULL) {
-    KdPrint(("ChaosLoader: File too large\n"));
+    fprintf(stderr, "ChaosLoader: File too large (error %lu)\n",
+             GetLastError());
     CloseHandle(hFile);
     return STATUS_FILE_TOO_LARGE;
   }
@@ -124,7 +131,8 @@ static NTSTATUS LoadFileIntoBuffer(_In_ LPCWSTR FilePath, _Out_ PVOID *Buffer,
                             MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
   if (fileBuffer == NULL) {
-    KdPrint(("ChaosLoader: Failed to allocate bytes\n"));
+    fprintf(stderr, "ChaosLoader: Failed to allocate bytes (error %lu)\n",
+             GetLastError());
     CloseHandle(hFile);
     return STATUS_NO_MEMORY;
   }
@@ -133,7 +141,8 @@ static NTSTATUS LoadFileIntoBuffer(_In_ LPCWSTR FilePath, _Out_ PVOID *Buffer,
   DWORD bytesRead = 0;
   if (!ReadFile(hFile, fileBuffer, (DWORD)fileSize.QuadPart, &bytesRead,
                 NULL)) {
-    KdPrint(("ChaosLoader: Failed to read file\n"));
+    fprintf(stderr, "ChaosLoader: Failed to read file (error %lu)\n",
+             GetLastError());
     VirtualFree(fileBuffer, 0, MEM_RELEASE);
     CloseHandle(hFile);
     return STATUS_IO_DEVICE_ERROR;
@@ -170,9 +179,8 @@ int main(int argc, char *argv[])
   printf("==============================================\n\n");
 
   // Step 1: Open the Symbiose Bridge driver
-  hDevice =
-      CreateFileW(L"\\\\.\\" SYMBIOSE_DRIVER_NAME, GENERIC_READ | GENERIC_WRITE,
-                  0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+  hDevice = CreateFileW(SYMBIOSE_DRIVER_PATH, GENERIC_READ | GENERIC_WRITE, 0,
+                        NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
   if (hDevice == INVALID_HANDLE_VALUE) {
     printf("❌ Failed to open Symbiose Bridge driver\n");
