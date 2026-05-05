@@ -1,5 +1,6 @@
 // 02_Symbiose_Bridge/src/driver_entry.c
-// Crucible: PATTERN-002 (expect() not unwrap()), PATTERN-007 (exit codes handled)
+// Crucible: PATTERN-002 (expect() not unwrap()), PATTERN-007 (exit codes
+// handled)
 
 #include "symbiose_bridge.h"
 
@@ -9,59 +10,44 @@
 #endif
 
 NTSTATUS
-SymbioseDeviceAdd(
-    _In_ WDFDRIVER Driver,
-    _Inout_ PWDFDEVICE_INIT DeviceInit
-)
-{
-    UNREFERENCED_PARAMETER(Driver);
-    UNREFERENCED_PARAMETER(DeviceInit);
-    return STATUS_SUCCESS;
+SymbioseDeviceAdd(_In_ WDFDRIVER Driver, _Inout_ PWDFDEVICE_INIT DeviceInit) {
+  UNREFERENCED_PARAMETER(Driver);
+  UNREFERENCED_PARAMETER(DeviceInit);
+  return STATUS_SUCCESS;
 }
 
 NTSTATUS
-DriverEntry(
-	_In_ PDRIVER_OBJECT DriverObject,
-	_In_ PUNICODE_STRING RegistryPath
-)
-{
-	NTSTATUS status;
-	WDF_DRIVER_CONFIG config;
+DriverEntry(_In_ PDRIVER_OBJECT DriverObject,
+            _In_ PUNICODE_STRING RegistryPath) {
+  NTSTATUS status;
+  WDF_DRIVER_CONFIG config;
 
-	KdPrint(("SymbioseBridge: DriverEntry called\n"));
+  KdPrint(("SymbioseBridge: DriverEntry called\n"));
 
-	WDF_DRIVER_CONFIG_INIT(&config, SymbioseDeviceAdd);
-	config.DriverUnloading = SymbioseDriverUnload;
-	config.EvtDriverContextCleanup = NULL;
+  WDF_DRIVER_CONFIG_INIT(&config, SymbioseDeviceAdd);
+  config.DriverUnloading = SymbioseDriverUnload;
+  config.EvtDriverContextCleanup = NULL;
 
-	status = WdfDriverCreate(
-		DriverObject,
-		RegistryPath,
-		WDF_NO_OBJECT_ATTRIBUTES,
-		&config,
-		WDF_NO_HANDLE
-	);
+  status = WdfDriverCreate(DriverObject, RegistryPath, WDF_NO_OBJECT_ATTRIBUTES,
+                           &config, WDF_NO_HANDLE);
 
-	if (!NT_SUCCESS(status)) {
-		KdPrint(("SymbioseBridge: WdfDriverCreate failed with status 0x%08X\n", status));
-		// PATTERN-002: Return error instead of crashing
-		return status;
-	}
+  if (!NT_SUCCESS(status)) {
+    KdPrint(("SymbioseBridge: WdfDriverCreate failed with status 0x%08X\n",
+             status));
+    // PATTERN-002: Return error instead of crashing
+    return status;
+  }
 
-	KdPrint(("SymbioseBridge: Driver initialized successfully\n"));
-	return STATUS_SUCCESS;
+  KdPrint(("SymbioseBridge: Driver initialized successfully\n"));
+  return STATUS_SUCCESS;
 }
 
-VOID
-SymbioseDriverUnload(
-	_In_ WDFDRIVER Driver
-)
-{
-	PAGED_CODE();
+VOID SymbioseDriverUnload(_In_ WDFDRIVER Driver) {
+  PAGED_CODE();
 
-	UNREFERENCED_PARAMETER(Driver);
-	KdPrint(("SymbioseBridge: Driver unloading\n"));
+  UNREFERENCED_PARAMETER(Driver);
+  KdPrint(("SymbioseBridge: Driver unloading\n"));
 
-	// Cleanup is handled by device context cleanup callback
-	// PATTERN-015: All resources released in cleanup path
+  // Cleanup is handled by device context cleanup callback
+  // PATTERN-015: All resources released in cleanup path
 }

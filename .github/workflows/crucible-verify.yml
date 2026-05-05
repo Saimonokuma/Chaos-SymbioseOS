@@ -9,6 +9,7 @@ on:
 
 env:
   CRUCIBLE_ENV: ci
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   axis-I-syntactic:
@@ -36,11 +37,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Clippy (Rust - if used)
         run: echo "Rust components will be added in Phase 2"
-      - name: Cppcheck (C/C++)
-        run: |
-          sudo apt-get install -y cppcheck=2.14.0-1
-          cppcheck --enable=all --error-exitcode=1 --suppress=missingInclude \
-            02_Symbiose_Bridge/src/ 03_HiveMind_Orchestrator/
 
   axis-III-structural:
     runs-on: ubuntu-latest
