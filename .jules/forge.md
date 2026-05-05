@@ -1,0 +1,4 @@
+## 2025-05-18 - Isolated Exception Handling in Asyncio Network Broadcasting
+**Bug:** A single recipient client disconnecting from an IRC channel caused an unhandled `ConnectionResetError` during `await client.drain()`. This exception incorrectly crashed the event handler of the *sender*, disconnecting the sender and failing to deliver the message to the remaining clients in the channel.
+**Root Cause:** The channel broadcast loop iteratively called `await client.drain()` on every recipient within the sender's coroutine without any internal `try/except` protection.
+**Prevention:** Always encapsulate individual asynchronous write operations (`drain`) to peers within their own specific `try/except (ConnectionError, OSError)` blocks inside broadcast loops to isolate failures and ensure fault-tolerant message delivery.

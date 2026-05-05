@@ -77,8 +77,15 @@ class SymbioseIRCD:
                     payload = f"PRIVMSG {target} {content}\r\n".encode("utf-8")
                     for client in list(self.channels[target]):
                         if client != sender:
-                            client.write(payload)
-                            await client.drain()
+                            try:
+                                client.write(payload)
+                                await client.drain()
+                            except (ConnectionError, asyncio.IncompleteReadError, OSError) as e:
+                                logger.error(
+                                    "Failed to deliver message to client %s: %s",
+                                    client.get_extra_info("peername"),
+                                    e,
+                                )
 
     async def start(self, host: str = "127.0.0.1", port: int = 6667) -> None:
         server = await asyncio.start_server(
