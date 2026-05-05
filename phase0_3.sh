@@ -7,9 +7,11 @@ set -euo pipefail
 SEED_DIR="${1:-./CHAOS 1.5}"
 OMOSIX_LOG="./02_Symbiose_Bridge/docs/openmosix_catalog.md"
 
-echo "# OpenMosix Source Catalog" > "$OMOSIX_LOG"
-echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$OMOSIX_LOG"
-echo "" >> "$OMOSIX_LOG"
+{
+	echo "# OpenMosix Source Catalog"
+	echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+	echo ""
+} > "$OMOSIX_LOG"
 
 # Search for OpenMosix-related files
 find "$SEED_DIR" -type f \( -name "*.c" -o -name "*.h" -o -name "*.patch" -o -name "Makefile" \) -print0 \
@@ -18,8 +20,10 @@ find "$SEED_DIR" -type f \( -name "*.c" -o -name "*.h" -o -name "*.patch" -o -na
 		echo "- \`$file\`" >> "$OMOSIX_LOG"
 	done || true
 
-echo "" >> "$OMOSIX_LOG"
-echo "## Analysis Required" >> "$OMOSIX_LOG"
-echo "- Identify kernel version target (likely 2.4.x)" >> "$OMOSIX_LOG"
-echo "- Catalog syscalls and /proc interface" >> "$OMOSIX_LOG"
-echo "- Document migration protocol (TCP/UDP ports, packet format)" >> "$OMOSIX_LOG"
+{
+	echo ""
+	echo "## Analysis Required"
+	echo "- Identify kernel version target (likely 2.4.x)"
+	echo "- Catalog syscalls and /proc interface"
+	echo "- Document migration protocol (TCP/UDP ports, packet format)"
+} >> "$OMOSIX_LOG"

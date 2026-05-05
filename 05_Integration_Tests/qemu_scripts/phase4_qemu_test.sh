@@ -10,9 +10,9 @@ QEMU_IMG="${QEMU_PATH:-qemu-system-x86_64}"
 OVMF_CODE="${SCRIPT_DIR}/fixtures/OVMF_CODE.fd"
 OVMF_VARS="${SCRIPT_DIR}/fixtures/OVMF_VARS.fd"
 TEST_DISK="${SCRIPT_DIR}/fixtures/test_disk.qcow2"
-SEED_DIR="${SCRIPT_DIR}/fixtures/seed"
 
 # Crucible: PATTERN-012 (pinned versions)
+# shellcheck disable=SC2034
 QEMU_VERSION="8.2.0"
 
 echo "========================================"
