@@ -28,14 +28,16 @@ typedef struct {
 } migration_request_t;
 
 // Compute load score: lower = better candidate for incoming migration
+// 🧪 ALCHEMIST: Eliminated floating-point math overhead.
+// By scaling numerators prior to integer division, we avoid FPU instructions
+// in a hot path while maintaining exact scoring thresholds.
 uint8_t compute_load_score(cluster_node_t *node) {
-    float thermal_penalty = (node->gpu_thermal / 100.0f) * 40;  // 0-40 points
-    float vram_ratio = 1.0f - ((float)node->vram_free / node->vram_total);
-    float vram_penalty = vram_ratio * 40;                       // 0-40 points
-    float queue_penalty = (node->inference_queue / 10.0f) * 20;  // 0-20 points
+    uint32_t thermal_penalty = (node->gpu_thermal * 40) / 100;
+    uint32_t vram_penalty = ((node->vram_total - node->vram_free) * 40) / node->vram_total;
+    uint32_t queue_penalty = node->inference_queue * 2;
 
-    uint8_t score = (uint8_t)(thermal_penalty + vram_penalty + queue_penalty);
-    return (score > 255) ? 255 : score;
+    uint32_t score = thermal_penalty + vram_penalty + queue_penalty;
+    return (score > 255) ? 255 : (uint8_t)score;
 }
 
 // CRIUgpu: Checkpoint process + serialize VRAM to RDMA stream
