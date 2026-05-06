@@ -1,0 +1,17 @@
+# Configuration/Tasks/telemetry_bind.yml
+# Configure IRCv3 daemon for MoE neural bus operation
+
+title: Bind IRCv3 Neural Bus to Telemetry Channels
+description: >
+  Configures the symbiose_ircd daemon for cluster communication,
+  node discovery, and real-time GPU/VRAM metric routing.
+
+actions:
+  - !writeStatus: { status: 'Configuring IRCv3 channel bindings...' }
+  - !run:
+      exeDir: true
+      exe: 'symbiose_ircd.exe'
+      args: '--bind-channel #oracle --bind-channel #recon --bind-channel #hive-mind --bind-channel #cluster-announce --bind-channel #telemetry'
+      weight: 5
+  - !writeStatus: { status: 'Neural bus channels bound. Hive mind ready.' }
+  - weight: 5

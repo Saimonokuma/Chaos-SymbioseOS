@@ -1,0 +1,95 @@
+# .github/workflows/forge-apbx.yml
+name: Forge APBX Playbook
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  APBX_PASSWORD: "malte"  # AME Wizard requires this exact password
+  BUILD_TYPE: Release
+
+jobs:
+  build-and-package:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Provision Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential p7zip-full mingw-w64 nasm
+
+      - name: Validate Seed Integrity
+        run: |
+          # Verify the Chaos 1.5 seed exists and contains critical files
+          SEED_DIR="CHAOS 1.5/CHAOS"
+          if [ ! -f "$SEED_DIR/BZIMAGE" ]; then
+            echo "::error::BZIMAGE not found in seed directory"
+            exit 1
+          fi
+          if [ ! -f "$SEED_DIR/CHAOS.RDZ" ]; then
+            echo "::error::CHAOS.RDZ not found in seed directory"
+            exit 1
+          fi
+          echo "✅ Seed integrity validated"
+
+      - name: Compile C/ASM Binaries (Cross-Compile)
+        run: |
+          mkdir -p build && cd build
+          cmake -DCMAKE_TOOLCHAIN_FILE=../toolchain-x86_64-w64-mingw32.cmake \
+                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+                ..
+          make -j$(nproc)
+
+      - name: Rebuild initrd.img with CRIU & eBPF Userspace
+        run: |
+          chmod +x rebuild_initrd.sh
+          ./rebuild_initrd.sh
+
+      - name: Assemble APBX File Tree
+        run: |
+          STAGING="04_APBX_Transmigration/playbook"
+
+          # Executables
+          mkdir -p $STAGING/Executables/Drivers
+          mkdir -p $STAGING/Configuration/Tasks
+
+          # We check if they were built before copying, as some might be skipped in early CI tests
+          if [ -f "build/03_HiveMind_Orchestrator/ChaosLoader.exe" ]; then
+             cp build/03_HiveMind_Orchestrator/ChaosLoader.exe $STAGING/Executables/
+          fi
+          if [ -f "build/03_HiveMind_Orchestrator/symbiose_ircd.exe" ]; then
+             cp build/03_HiveMind_Orchestrator/symbiose_ircd.exe $STAGING/Executables/
+          fi
+
+          cp "CHAOS 1.5/CHAOS/BZIMAGE" $STAGING/Executables/bzImage
+          # initrd.img is placed by rebuild_initrd.sh
+
+          # Drivers
+          if [ -f "02_Symbiose_Bridge/inf/SymbioseNull.inf" ]; then
+              cp 02_Symbiose_Bridge/inf/SymbioseNull.inf $STAGING/Executables/Drivers/
+          fi
+
+          # Configuration
+          if [ -f "04_APBX_Transmigration/playbook/playbook.conf" ]; then
+              echo "Configuration files already in staging."
+          fi
+
+      - name: Cryptographic APBX Sealing
+        working-directory: ./04_APBX_Transmigration/playbook
+        run: |
+          # AME Wizard strict parameters: 7z, LZMA2, encrypted headers
+          # -mhe=on encrypts file headers to evade static defender heuristics
+          7z a -t7z -p"${{ env.APBX_PASSWORD }}" -mhe=on -m0=lzma2 -mx=9 ../Chaos-SymbioseOS.apbx *
+
+      - name: Upload APBX Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Chaos-SymbioseOS-apbx
+          path: 04_APBX_Transmigration/Chaos-SymbioseOS.apbx
+          retention-days: 30
