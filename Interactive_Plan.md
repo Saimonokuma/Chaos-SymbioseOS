@@ -17,23 +17,23 @@
 ┌──────────────────────────────────────────────────────────────────────┐
 │                     WINDOWS HOST (Ring-3)                            │
 │                                                                      │
-│  SymbioseTerminal.exe ◄──IRC──► symbiose_ircd.exe ◄──SHM Ring──►   │
-│  (Tauri 2.0 UI)                 (Neural Bus)           (4GB)        │
+│  SymbioseTerminal.exe ◄──IRC──► symbiose_ircd.exe ◄──SHM Ring──►     │
+│  (Tauri 2.0 UI)                 (Neural Bus)           (4GB)         │
 │       │                              │                               │
-│       └──── IOCTL ──► symbiose_bridge.sys (KMDF Ring-0 Hypervisor)  │
+│       └──── IOCTL ──► symbiose_bridge.sys (KMDF Ring-0 Hypervisor)   │
 │                              │ VMLAUNCH                              │
 ├──────────────────────────────┼───────────────────────────────────────┤
 │                     VMX GUEST (Linux)                                │
 │                              │                                       │
-│  PID 1: hive_mind ──► symbiose_ircd (guest) ──► llama-server        │
+│  PID 1: hive_mind ──► symbiose_ircd (guest) ──► llama-server         │
 │       │                    7 IRC Channels           (100B+ F32)      │
-│       ├── Moviola (vision)   ├── #oracle (chat)                     │
-│       ├── Whisper (STT)      ├── #recon (scouts)                    │
-│       ├── Piper (TTS)        ├── #hive-mind (cluster)               │
-│       └── RDMA Tensor Bus    ├── #cluster-announce (nodes)          │
-│                              ├── #telemetry (metrics)               │
-│           GPU + NVMe         ├── #checkpoint (CRIU)                 │
-│           (DDA passthrough)  └── #neural-jam (D.E.M.H.X.)          │
+│       ├── Moviola (vision)   ├── #oracle (chat)                      │
+│       ├── Whisper (STT)      ├── #recon (scouts)                     │
+│       ├── Piper (TTS)        ├── #hive-mind (cluster)                │
+│       └── RDMA Tensor Bus    ├── #cluster-announce (nodes)           │
+│                              ├── #telemetry (metrics)                │
+│           GPU + NVMe         ├── #checkpoint (CRIU)                  │
+│           (DDA passthrough)  └── #neural-jam (D.E.M.H.X.)            │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
