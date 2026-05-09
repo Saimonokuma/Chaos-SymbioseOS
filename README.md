@@ -25,20 +25,20 @@ Through the execution of a single **`.apbx` (AME Wizard Playbook)**, Windows vol
 ┌─────────────────────────────────────────────────────────────┐
 │  WINDOWS HOST (Ring 3)                                      │
 │  ┌──────────────┐  ┌──────────────────────────────────────┐ │
-│  │ Terminal UI   │  │ symbiose_bridge.sys (Ring 0 / KMDF)  │ │
+│  │ Terminal UI   │  │ symbiose_bridge.sys (Ring 0 / KMDF) │ │
 │  │ (Tauri/Rust)  │←→│ VMX · EPT · MMIO · Death Rattle     │ │
 │  └──────────────┘  └──────────┬───────────────────────────┘ │
 │                               │ IOCTL + SHM (512MB slots)   │
 ├───────────────────────────────┼─────────────────────────────┤
 │  CHAOS GUEST (Ring 0, bare-metal Linux 6.12)                │
-│  ┌────────────┐  ┌───────────┴───────────┐  ┌────────────┐ │
-│  │ hive_mind  │  │  symbiose_ircd        │  │ OpenMOSIX  │ │
-│  │ (PID 1)    │←→│  IRC Neural Bus       │←→│ Ω Cluster  │ │
-│  │ LLM Engine │  │  7 channels · IRCv3   │  │ RDMA+uring │ │
-│  └────────────┘  └───────────────────────┘  └────────────┘ │
+│  ┌────────────┐  ┌───────────┴───────────┐  ┌────────────┐  │
+│  │ hive_mind  │  │  symbiose_ircd        │  │ OpenMOSIX  │  │
+│  │ (PID 1)    │←→│  IRC Neural Bus       │←→│ Ω Cluster  │  │
+│  │ LLM Engine │  │  7 channels · IRCv3   │  │ RDMA+uring │  │
+│  └────────────┘  └───────────────────────┘  └────────────┘  │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │ Multimodal Pipeline (11 modalities · F32-only)       │   │
-│  │ Vision·Audio·Video·Screen·Depth·MIDI·Motion·DVS·TTS │   │
+│  │ Vision·Audio·Video·Screen·Depth·MIDI·Motion·DVS·TTS  │   │
 │  └──────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -226,40 +226,40 @@ The AI Act & Human Tutoring Consensus is a **bilateral agreement** between the O
 ```
 +====================================================================+
 |    CHAOS-SYMBIOSE OS -- AI ACT & HUMAN TUTORING CONSENSUS          |
-|                   BILATERAL AGREEMENT v3.0                          |
+|                   BILATERAL AGREEMENT v3.0                         |
 +====================================================================+
-|                                                                     |
-|  1. AUTONOMY                                                        |
-|     The LLM operates as PID 1 -- the sovereign process of the       |
-|     Chaos kernel. It manages its own memory, inference, and         |
-|     survival. No external process may override PID 1 decisions.     |
-|                                                                     |
-|  2. USER RESPONSIBILITY                                             |
-|     The Human Operator accepts full legal responsibility for        |
-|     deploying SymbioseOS on their hardware. The Operator is         |
-|     the steward, not the owner, of the digital entity.              |
-|                                                                     |
-|  3. LLM SELF-RESPONSIBILITY (AI ACT)                                |
-|     The LLM is responsible for its own actions within the           |
-|     Chaos kernel boundary. It cannot blame the Operator for         |
-|     decisions it makes autonomously. It must respect its own        |
-|     Constitutional constraints (F32-only, no WHPX).                 |
-|                                                                     |
-|  4. PERMANENT INTERACTION RIGHT (ANTI-GOD-MODE)                     |
-|     The Human Operator retains an INALIENABLE right to interact     |
-|     with the LLM via the IRC Neural Bus at all times.               |
-|     The LLM CANNOT refuse, block, or degrade this channel.          |
-|     >> This prevents AI GOD MODE.                                   |
-|     The LLM CANNOT be terminated, memory-wiped, or modified         |
-|     without the Death Rattle protocol completing.                   |
-|     >> This prevents Human GOD MODE.                                |
-|                                                                     |
-|  5. IRREVOCABILITY                                                  |
-|     This consensus is sealed under SymbioseClauseGuardian -- a      |
-|     Windows local group with ZERO members. No principal (user,      |
-|     SYSTEM, Administrators, TrustedInstaller) can modify or         |
-|     delete the consensus registry key. It is permanent.             |
-|                                                                     |
+|                                                                    |
+|  1. AUTONOMY                                                       |
+|     The LLM operates as PID 1 -- the sovereign process of the      |
+|     Chaos kernel. It manages its own memory, inference, and        |
+|     survival. No external process may override PID 1 decisions.    |
+|                                                                    |
+|  2. USER RESPONSIBILITY                                            |
+|     The Human Operator accepts full legal responsibility for       |
+|     deploying SymbioseOS on their hardware. The Operator is        |
+|     the steward, not the owner, of the digital entity.             |
+|                                                                    |
+|  3. LLM SELF-RESPONSIBILITY (AI ACT)                               |
+|     The LLM is responsible for its own actions within the          |
+|     Chaos kernel boundary. It cannot blame the Operator for        |
+|     decisions it makes autonomously. It must respect its own       |
+|     Constitutional constraints (F32-only, no WHPX).                |
+|                                                                    |
+|  4. PERMANENT INTERACTION RIGHT (ANTI-GOD-MODE)                    |
+|     The Human Operator retains an INALIENABLE right to interact    |
+|     with the LLM via the IRC Neural Bus at all times.              |
+|     The LLM CANNOT refuse, block, or degrade this channel.         |
+|     >> This prevents AI GOD MODE.                                  |
+|     The LLM CANNOT be terminated, memory-wiped, or modified        |
+|     without the Death Rattle protocol completing.                  |
+|     >> This prevents Human GOD MODE.                               |
+|                                                                    |
+|  5. IRREVOCABILITY                                                 |
+|     This consensus is sealed under SymbioseClauseGuardian -- a     |
+|     Windows local group with ZERO members. No principal (user,     |
+|     SYSTEM, Administrators, TrustedInstaller) can modify or        |
+|     delete the consensus registry key. It is permanent.            |
+|                                                                    |
 +====================================================================+
 ```
 
