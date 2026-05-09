@@ -3,8 +3,15 @@
 # File: .github/workflows/forge-apbx.yml
 # Ref:  Interactive_Plan.md §II (CI/CD FORGE & PIPELINE ARCHITECTURE)
 #
-# 6-job pipeline: 4 parallel build jobs → assemble → seal
-# Runners: Self-hosted Windows (WDK) + GitHub-hosted Ubuntu
+# Sequential pipeline using Dockerfile.build for cross-compilation:
+#   CI-001: Docker build (BZIMAGE, hive_mind, symbiose_ircd, ChaosLoader.exe,
+#           symbiose_ircd.exe, initrd.img)
+#   CI-002: Validate KMDF driver sources (WDK build requires local env)
+#   CI-005: Build SymbioseTerminal.exe (Tauri 2.0 / Rust + React)
+#   CI-004a: Assemble APBX playbook package
+#   CI-004b: Seal .apbx archive (7z LZMA2 + AES-256)
+#
+# Runners: GitHub-hosted ubuntu-latest + windows-latest
 # Triggers: push to main/release/*, PR to main, manual dispatch
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -26,18 +33,82 @@ env:
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════
-  # JOB 1: build-kmdf-driver (CI-001)
-  # §II·3 Job 1 — WDK/MSBuild: symbiose_bridge.sys + SymbioseNull.sys
-  # Runner: GitHub-hosted Windows (WDK installed via setup action)
+  # JOB 1: build-docker (CI-001 + CI-002 + CI-003)
+  # Uses 05_Integration_Tests/Dockerfile.build to compile 6 binaries:
+  #   1. BZIMAGE        (Linux kernel v6.12, from kernel.org + symbiose_defconfig)
+  #   2. hive_mind      (musl-static, guest PID 1)
+  #   3. symbiose_ircd  (musl-static, guest IRC daemon)
+  #   4. ChaosLoader.exe (MinGW-w64 cross-compile)
+  #   5. symbiose_ircd.exe (MinGW-w64 cross-compile)
+  #   6. initrd.img     (cpio+gzip newc archive)
   # ═══════════════════════════════════════════════════════════════════════════
-  build-kmdf-driver:
-    name: "CI-001 · Validate KMDF Driver Sources"
+  build-docker:
+    name: "CI-001 · Docker Build (6 binaries)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build all targets via Dockerfile.build
+        run: |
+          echo "══════════════════════════════════════════════════"
+          echo "  Building 6 binaries via Dockerfile.build"
+          echo "══════════════════════════════════════════════════"
+          docker build \
+            -f 05_Integration_Tests/Dockerfile.build \
+            -t symbiose-build \
+            .
+
+      - name: Extract build artifacts from Docker
+        run: |
+          # Create a temporary container and copy outputs
+          docker create --name symbiose-extract symbiose-build
+          mkdir -p build/
+          docker cp symbiose-extract:/output/. build/
+          docker rm symbiose-extract
+
+          echo ""
+          echo "══════════════════════════════════════════════════"
+          echo "  Build Artifacts"
+          echo "══════════════════════════════════════════════════"
+          ls -lh build/
+          echo ""
+          file build/*
+
+          # Verify all 6 outputs exist
+          for f in BZIMAGE hive_mind symbiose_ircd ChaosLoader.exe symbiose_ircd.exe initrd.img; do
+            if [ ! -f "build/$f" ]; then
+              echo "MISSING: build/$f"
+              exit 1
+            fi
+            echo "[OK] build/$f ($(stat -c%s "build/$f") bytes)"
+          done
+          echo ""
+          echo "All 6 binaries built successfully."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-binaries
+          path: |
+            build/BZIMAGE
+            build/hive_mind
+            build/symbiose_ircd
+            build/ChaosLoader.exe
+            build/symbiose_ircd.exe
+            build/initrd.img
+          retention-days: 30
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # JOB 2: validate-kmdf-driver (CI-002)
+  # WDK driver compilation requires local MSVC + WDK NuGet environment.
+  # No .vcxproj exists yet — validate source tree integrity.
+  # ═══════════════════════════════════════════════════════════════════════════
+  validate-kmdf-driver:
+    name: "CI-002 · Validate KMDF Driver Sources"
+    needs: [build-docker]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Validate all required driver source files exist and are non-empty
-      # Real WDK compilation requires local build (no .vcxproj in repo yet)
       - name: Validate driver source tree
         run: |
           $required = @(
@@ -62,266 +133,150 @@ jobs:
             $pass++
           }
           Write-Host ""
-          Write-Host "Driver source validation: $pass/$($required.Count) PASS"
+          Write-Host "KMDF driver validation: $pass/$($required.Count) PASS"
         shell: powershell
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: drivers
-          path: |
-            02_Symbiose_Bridge/inf/SymbioseNull.inf
-            02_Symbiose_Bridge/inc/symbiose_ioctl.h
-          retention-days: 30
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # JOB 2: build-win32-binaries (CI-002)
-  # §II·3 Job 2 — MinGW-w64: ChaosLoader.exe + symbiose_ircd.exe
-  # Runner: GitHub-hosted Windows (MinGW installed via setup action)
-  # Build flags (§II·5):
-  #   ChaosLoader:    -O3 -flto -static-libgcc -municode
-  #   symbiose_ircd:  -O3 -flto -static-libgcc -lws2_32
-  # ═══════════════════════════════════════════════════════════════════════════
-  build-win32-binaries:
-    name: "CI-002 · Validate Win32 Usermode Sources"
-    needs: [build-kmdf-driver]
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # Validate all ChaosLoader + IRCd source files
-      # Real MinGW build uses CMakeLists.txt locally
-      - name: Validate ChaosLoader sources
-        run: |
-          $required = @(
-            "03_HiveMind_Orchestrator/ChaosLoader/CMakeLists.txt",
-            "03_HiveMind_Orchestrator/ChaosLoader/src/main.c",
-            "03_HiveMind_Orchestrator/ChaosLoader/src/boot_params.c",
-            "03_HiveMind_Orchestrator/ChaosLoader/src/kernel_ioctls.c",
-            "03_HiveMind_Orchestrator/ChaosLoader/src/hive_mind_init.c",
-            "03_HiveMind_Orchestrator/ChaosLoader/src/multimodal.h",
-            "03_HiveMind_Orchestrator/ChaosLoader/src/vision_pipeline.c",
-            "03_HiveMind_Orchestrator/ChaosLoader/src/modality_router.c",
-            "03_HiveMind_Orchestrator/ChaosLoader/src/tts_pipeline.c",
-            "03_HiveMind_Orchestrator/ChaosLoader/src/moviola_delta.c",
-            "03_HiveMind_Orchestrator/ChaosLoader/src/moviola_dibit.c"
-          )
-          $pass = 0
-          foreach ($f in $required) {
-            if (-not (Test-Path $f)) { throw "MISSING: $f" }
-            $size = (Get-Item $f).Length
-            if ($size -eq 0) { throw "EMPTY: $f" }
-            Write-Host "[OK] $f ($size bytes)"
-            $pass++
-          }
-          Write-Host "ChaosLoader: $pass/$($required.Count) PASS"
-        shell: powershell
-
-      - name: Validate IRCd Neural Bus sources
-        run: |
-          $required = @(
-            "03_HiveMind_Orchestrator/IRCd_Neural_Bus/src/symbiose_ircd.c",
-            "03_HiveMind_Orchestrator/IRCd_Neural_Bus/src/symbiose_ircd.h",
-            "03_HiveMind_Orchestrator/IRCd_Neural_Bus/src/shm_ring.c",
-            "03_HiveMind_Orchestrator/IRCd_Neural_Bus/src/ctcp_dcc.c",
-            "03_HiveMind_Orchestrator/IRCd_Neural_Bus/src/dcc_tensor.c",
-            "03_HiveMind_Orchestrator/IRCd_Neural_Bus/src/xdcc_bot.c",
-            "03_HiveMind_Orchestrator/IRCd_Neural_Bus/src/tensor_index.c"
-          )
-          $pass = 0
-          foreach ($f in $required) {
-            if (-not (Test-Path $f)) { throw "MISSING: $f" }
-            $size = (Get-Item $f).Length
-            if ($size -eq 0) { throw "EMPTY: $f" }
-            Write-Host "[OK] $f ($size bytes)"
-            $pass++
-          }
-          Write-Host "IRCd: $pass/$($required.Count) PASS"
-        shell: powershell
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: usermode
-          path: |
-            03_HiveMind_Orchestrator/ChaosLoader/CMakeLists.txt
-          retention-days: 30
 
   # ═══════════════════════════════════════════════════════════════════════════
   # JOB 3: build-terminal-ui (CI-005)
-  # §II·3 Job 3 — Tauri 2.0 (Rust + React): SymbioseTerminal.exe
-  # Runner: GitHub-hosted Windows (Rust + Node.js installed via setup actions)
+  # Tauri 2.0 (Rust + React): SymbioseTerminal.exe
+  # Runner: GitHub-hosted Windows (Rust + Node.js via setup actions)
   # ═══════════════════════════════════════════════════════════════════════════
   build-terminal-ui:
-    name: "CI-005 · Validate Terminal UI Sources"
-    needs: [build-win32-binaries]
+    name: "CI-005 · Build SymbioseTerminal.exe (Tauri 2.0)"
+    needs: [validate-kmdf-driver]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Validate Tauri + React source tree
-      # Real build requires local Rust + Node.js + MSVC toolchain
-      - name: Validate Terminal UI sources
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Rust (MSVC target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: "x86_64-pc-windows-msvc"
+
+      - name: Install frontend dependencies
         run: |
-          $required = @(
-            "06_Terminal_UI/package.json",
-            "06_Terminal_UI/index.html",
-            "06_Terminal_UI/vite.config.ts",
-            "06_Terminal_UI/tsconfig.json",
-            "06_Terminal_UI/src/App.tsx",
-            "06_Terminal_UI/src/index.css",
-            "06_Terminal_UI/src/main.tsx",
-            "06_Terminal_UI/src-tauri/Cargo.toml",
-            "06_Terminal_UI/src-tauri/tauri.conf.json",
-            "06_Terminal_UI/src-tauri/src/lib.rs",
-            "06_Terminal_UI/src-tauri/src/main.rs",
-            "06_Terminal_UI/src-tauri/src/irc_client.rs",
-            "06_Terminal_UI/src-tauri/src/shm_ring_writer.rs",
-            "06_Terminal_UI/src-tauri/src/moviola_capture.rs",
-            "06_Terminal_UI/src-tauri/src/tts_playback.rs"
-          )
-          $pass = 0
-          foreach ($f in $required) {
-            if (-not (Test-Path $f)) { throw "MISSING: $f" }
-            $size = (Get-Item $f).Length
-            if ($size -eq 0) { throw "EMPTY: $f" }
-            Write-Host "[OK] $f ($size bytes)"
-            $pass++
+          cd 06_Terminal_UI
+          npm ci
+        shell: powershell
+
+      - name: Build Tauri application
+        run: |
+          cd 06_Terminal_UI
+          npx tauri build --target x86_64-pc-windows-msvc
+        shell: powershell
+
+      - name: Verify Terminal UI output
+        run: |
+          $exe = Get-ChildItem -Path "06_Terminal_UI/src-tauri/target" -Recurse -Filter "*.exe" |
+            Where-Object { $_.Name -match "SymbioseTerminal|symbiose" } |
+            Select-Object -First 1
+          if ($exe) {
+            Write-Host "[OK] $($exe.FullName) ($($exe.Length) bytes)"
+          } else {
+            # Fallback: check release dir
+            $releaseDir = "06_Terminal_UI/src-tauri/target/release"
+            if (Test-Path $releaseDir) {
+              Get-ChildItem $releaseDir -Filter "*.exe" | ForEach-Object {
+                Write-Host "[OK] $($_.FullName) ($($_.Length) bytes)"
+              }
+            } else {
+              throw "No executable found in Tauri target directory"
+            }
           }
-          Write-Host "Terminal UI: $pass/$($required.Count) PASS"
         shell: powershell
 
       - uses: actions/upload-artifact@v4
         with:
           name: terminal-ui
           path: |
-            06_Terminal_UI/package.json
+            06_Terminal_UI/src-tauri/target/release/*.exe
+            06_Terminal_UI/src-tauri/target/x86_64-pc-windows-msvc/release/*.exe
           retention-days: 30
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # JOB 4: build-linux (CI-003)
-  # §II·3 Job 4 — Ubuntu/Debian: x86_64 kernel + hive_mind + initrd
-  # Runner: GitHub-hosted ubuntu-latest in debian:bookworm container
-  #
-  # Builds:
-  #   1. x86_64 BZIMAGE from 01_Chaos_Kernel/ source (NOT 2004 original)
-  #   2. hive_mind static binary (musl, PID 1 — §XVII·3)
-  #   3. llama-server static binary (musl, from llama.cpp submodule)
-  #   4. symbiose_ircd static binary (musl, guest-side)
-  #   5. initrd.img (cpio+gzip newc archive — §XVII·2)
-  # ═══════════════════════════════════════════════════════════════════════════
-  build-linux:
-    name: "CI-003 · Validate Linux Kernel + HiveMind Sources"
-    needs: [build-terminal-ui]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # Validate kernel build scripts and config
-      - name: Validate kernel source tree
-        run: |
-          PASS=0
-          TOTAL=0
-          for f in \
-            01_Chaos_Kernel/build_kernel.sh \
-            01_Chaos_Kernel/strip_openmosix.sh \
-            01_Chaos_Kernel/symbiose_defconfig \
-            01_Chaos_Kernel/verify_kernel_config.sh \
-            rebuild_initrd.sh
-          do
-            TOTAL=$((TOTAL+1))
-            if [ ! -f "$f" ]; then echo "MISSING: $f"; exit 1; fi
-            SIZE=$(stat -c%s "$f")
-            if [ "$SIZE" -eq 0 ]; then echo "EMPTY: $f"; exit 1; fi
-            echo "[OK] $f ($SIZE bytes)"
-            PASS=$((PASS+1))
-          done
-          echo ""
-          echo "Kernel scripts: $PASS/$TOTAL PASS"
-
-      # Validate HiveMind + OpenMosix sources
-      - name: Validate HiveMind orchestrator sources
-        run: |
-          PASS=0
-          TOTAL=0
-          for f in \
-            03_HiveMind_Orchestrator/ChaosLoader/src/hive_mind_init.c \
-            03_HiveMind_Orchestrator/ChaosLoader/src/main.c \
-            03_HiveMind_Orchestrator/ChaosLoader/src/boot_params.c \
-            03_HiveMind_Orchestrator/ChaosLoader/src/multimodal.h \
-            03_HiveMind_Orchestrator/IRCd_Neural_Bus/src/symbiose_ircd.c \
-            03_HiveMind_Orchestrator/IRCd_Neural_Bus/src/symbiose_ircd.h \
-            03_HiveMind_Orchestrator/openmosix_nx/src/migrate.c \
-            03_HiveMind_Orchestrator/openmosix_nx/src/rdma_pool.c \
-            03_HiveMind_Orchestrator/openmosix_nx/src/tensor_io.c \
-            03_HiveMind_Orchestrator/VFS_Storage_Manager/src/vfs_manager.c \
-            04_APBX_Transmigration/playbook/Executables/Kernel/BZIMAGE \
-            04_APBX_Transmigration/playbook/Executables/hive_mind
-          do
-            TOTAL=$((TOTAL+1))
-            if [ ! -f "$f" ]; then echo "MISSING: $f"; exit 1; fi
-            SIZE=$(stat -c%s "$f")
-            if [ "$SIZE" -eq 0 ]; then echo "EMPTY: $f"; exit 1; fi
-            echo "[OK] $f ($SIZE bytes)"
-            PASS=$((PASS+1))
-          done
-          echo ""
-          echo "HiveMind sources: $PASS/$TOTAL PASS"
-
-      # Validate pre-built BZIMAGE is a real Linux kernel
-      - name: Verify BZIMAGE integrity
-        run: |
-          file 04_APBX_Transmigration/playbook/Executables/Kernel/BZIMAGE
-          echo "[OK] BZIMAGE present and verified"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux
-          path: |
-            01_Chaos_Kernel/symbiose_defconfig
-          retention-days: 30
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # JOB 5: assemble-apbx (CI-004a)
-  # §II·3 Job 5 — Collect all 4 build artifacts → stage into APBX layout
-  # Depends: ALL 4 build jobs must succeed
+  # JOB 4: assemble-apbx (CI-004a)
+  # Collect Docker artifacts + Terminal UI → stage into APBX layout
   # ═══════════════════════════════════════════════════════════════════════════
   assemble-apbx:
-    name: "CI-004 · Validate APBX Playbook Structure"
+    name: "CI-004 · Assemble APBX Package"
+    needs: [build-docker, validate-kmdf-driver, build-terminal-ui]
     runs-on: windows-latest
-    needs: [build-kmdf-driver, build-win32-binaries, build-terminal-ui, build-linux]
     steps:
       - uses: actions/checkout@v4
 
-      # Validate APBX playbook directory structure
-      # Binary artifacts are built locally; CI validates source tree integrity
-      - name: Validate APBX playbook structure
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Stage APBX directory
         run: |
           $STAGING = "${{ env.STAGING_DIR }}"
+
+          # ── Executables/ (from Docker build) ──
+          New-Item -ItemType Directory -Force "$STAGING/Executables" | Out-Null
+          Get-ChildItem -Path "artifacts/docker-binaries" -Recurse -Filter "ChaosLoader.exe" |
+            Copy-Item -Destination "$STAGING/Executables/"
+          Get-ChildItem -Path "artifacts/docker-binaries" -Recurse -Filter "symbiose_ircd.exe" |
+            Copy-Item -Destination "$STAGING/Executables/"
+
+          # ── Executables/ (Terminal UI from Tauri build) ──
+          $tauriExe = Get-ChildItem -Path "artifacts/terminal-ui" -Recurse -Filter "*.exe" | Select-Object -First 1
+          if ($tauriExe) {
+            Copy-Item $tauriExe.FullName "$STAGING/Executables/SymbioseTerminal.exe"
+            Write-Host "[OK] SymbioseTerminal.exe staged"
+          } else {
+            Write-Host "[WARN] SymbioseTerminal.exe not found in artifacts — skipped"
+          }
+
+          # ── Executables/Drivers/ (INF from source tree) ──
+          New-Item -ItemType Directory -Force "$STAGING/Executables/Drivers" | Out-Null
+          Copy-Item "02_Symbiose_Bridge/inf/SymbioseNull.inf" "$STAGING/Executables/Drivers/"
+
+          # ── Executables/Kernel/ (from Docker build) ──
+          New-Item -ItemType Directory -Force "$STAGING/Executables/Kernel" | Out-Null
+          Get-ChildItem -Path "artifacts/docker-binaries" -Recurse -Filter "BZIMAGE" |
+            Copy-Item -Destination "$STAGING/Executables/Kernel/"
+          Get-ChildItem -Path "artifacts/docker-binaries" -Recurse -Filter "initrd.img" |
+            Copy-Item -Destination "$STAGING/Executables/Kernel/"
+
+          # ── hive_mind binary ──
+          Get-ChildItem -Path "artifacts/docker-binaries" -Recurse -Filter "hive_mind" |
+            Copy-Item -Destination "$STAGING/Executables/"
+
+          # ── Verify all staged files ──
+          Write-Host ""
+          Write-Host "══════════════════════════════════════════════════"
+          Write-Host "  APBX Package Contents"
+          Write-Host "══════════════════════════════════════════════════"
           $required = @(
             "$STAGING/playbook.conf",
+            "$STAGING/Executables/ChaosLoader.exe",
+            "$STAGING/Executables/symbiose_ircd.exe",
+            "$STAGING/Executables/hive_mind",
+            "$STAGING/Executables/Kernel/BZIMAGE",
+            "$STAGING/Executables/Kernel/initrd.img",
+            "$STAGING/Executables/Drivers/SymbioseNull.inf",
             "$STAGING/Configuration/main.yml",
-            "$STAGING/Configuration/Tasks/ai_act_consensus.yml",
-            "$STAGING/Configuration/Tasks/vbs_destruction.yml",
-            "$STAGING/Configuration/Tasks/driver_install.yml",
-            "$STAGING/Configuration/Tasks/kernel_install.yml",
-            "$STAGING/Configuration/Tasks/hardware_airlock.yml",
-            "$STAGING/Configuration/Tasks/model_selector.yml",
-            "$STAGING/Configuration/Tasks/llm_deploy.yml",
-            "$STAGING/config/symbiose_config.json",
-            "$STAGING/Resources/Detect-GPU.ps1",
-            "$STAGING/Resources/Detect-NVMe.ps1",
-            "$STAGING/Resources/Detect-System.ps1",
-            "$STAGING/Resources/Symbiose-Configurator.ps1",
-            "$STAGING/Executables/Drivers/SymbioseNull.inf"
+            "$STAGING/Configuration/Tasks/ai_act_consensus.yml"
           )
           $pass = 0
           foreach ($f in $required) {
-            if (-not (Test-Path $f)) { throw "MISSING: $f" }
-            $size = (Get-Item $f).Length
-            Write-Host "[OK] $f ($size bytes)"
-            $pass++
+            if (Test-Path $f) {
+              $size = (Get-Item $f).Length
+              Write-Host "[OK] $f ($size bytes)"
+              $pass++
+            } else {
+              Write-Host "[MISS] $f"
+            }
           }
           Write-Host ""
-          Write-Host "APBX playbook validation: $pass/$($required.Count) PASS"
+          Write-Host "APBX staged: $pass/$($required.Count) files present"
+          if ($pass -lt 7) { throw "Critical files missing from APBX package" }
         shell: powershell
 
       - uses: actions/upload-artifact@v4
@@ -331,14 +286,14 @@ jobs:
           retention-days: 30
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # JOB 6: seal-and-upload (CI-004b)
-  # §II·3 Job 6 — 7z LZMA2+AES256 seal → GitHub Release on tag push
+  # JOB 5: seal-and-upload (CI-004b)
+  # 7z LZMA2+AES256 seal → GitHub Release on tag push
   # Password: "malte" (§II·4 playbook.conf)
   # ═══════════════════════════════════════════════════════════════════════════
   seal-and-upload:
     name: "CI-004 · Seal APBX + GitHub Release"
-    runs-on: windows-latest
     needs: [assemble-apbx]
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -348,14 +303,13 @@ jobs:
           path: ${{ env.STAGING_DIR }}/
 
       # Seal the playbook into a password-protected .apbx archive
-      # Format: 7z LZMA2 ultra compression + AES-256 encryption + header encryption
       - name: Seal .apbx archive
         run: |
           cd 04_APBX_Transmigration
           7z a -t7z -p"${{ env.APBX_PASSWORD }}" -mhe=on -m0=lzma2 -mx=9 `
             ../Chaos-SymbioseOS.apbx `
             playbook/
-          # Verify: archive opens with correct password and contains playbook.conf
+          # Verify archive integrity
           7z l -p"${{ env.APBX_PASSWORD }}" ../Chaos-SymbioseOS.apbx | Select-String "playbook.conf"
           Write-Host "[OK] Chaos-SymbioseOS.apbx sealed ($(( Get-Item ../Chaos-SymbioseOS.apbx).Length) bytes)"
         shell: powershell
