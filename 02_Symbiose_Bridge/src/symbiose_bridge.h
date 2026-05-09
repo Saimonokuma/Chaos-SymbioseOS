@@ -21,6 +21,7 @@
 #include <ntddk.h>
 #include <wdf.h>
 #include <wdm.h>
+#include <initguid.h>   // Must precede DEFINE_GUID to instantiate the GUID
 
 //
 // ── Device Interface GUID ────────────────────────────────────────────────────

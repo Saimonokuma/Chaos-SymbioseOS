@@ -97,7 +97,6 @@
     <ClCompile Include="src\vmx_hypervisor.c" />
     <ClCompile Include="src\ioctl_handler.c" />
     <ClCompile Include="src\acpi_handler.c" />
-    <ClCompile Include="src\nvme_isolation.c" />
   </ItemGroup>
 
   <!-- ASM file (MASM) -->
