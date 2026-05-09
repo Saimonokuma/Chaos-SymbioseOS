@@ -112,16 +112,27 @@ jobs:
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
+
       - name: Restore WDK NuGet packages
         run: nuget restore 02_Symbiose_Bridge\packages.config -PackagesDirectory 02_Symbiose_Bridge\packages
         shell: powershell
 
+      - name: Create test-signing certificate
+        run: |
+          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=SymbioseOS Test" -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(1)
+          $tp = $cert.Thumbprint
+          Write-Host "[OK] Test cert created: $tp"
+          echo "SIGN_THUMBPRINT=$tp" >> $env:GITHUB_ENV
+        shell: powershell
+
       - name: Build symbiose_bridge.sys (KMDF)
-        run: msbuild 02_Symbiose_Bridge/symbiose_bridge.vcxproj /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
+        run: |
+          msbuild 02_Symbiose_Bridge/symbiose_bridge.vcxproj /p:Configuration=Release /p:Platform=x64 /p:SignMode=TestSign /p:TestCertificate=$env:SIGN_THUMBPRINT /p:Inf2CatWindowsVersionList="10_x64" /p:FileDigestAlgorithm=SHA256
         shell: powershell
 
       - name: Build SymbioseNull.sys (WDM filter)
-        run: msbuild 02_Symbiose_Bridge/SymbioseNull/SymbioseNull.vcxproj /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
+        run: |
+          msbuild 02_Symbiose_Bridge/SymbioseNull/SymbioseNull.vcxproj /p:Configuration=Release /p:Platform=x64 /p:SignMode=TestSign /p:TestCertificate=$env:SIGN_THUMBPRINT /p:FileDigestAlgorithm=SHA256
         shell: powershell
 
       - name: Verify driver outputs
