@@ -228,9 +228,9 @@ jobs:
           $tauriExe = Get-ChildItem -Path "artifacts/terminal-ui" -Recurse -Filter "*.exe" | Select-Object -First 1
           if ($tauriExe) {
             Copy-Item $tauriExe.FullName "$STAGING/Executables/SymbioseTerminal.exe"
-            Write-Host "[OK] SymbioseTerminal.exe staged"
+            Write-Host "  [OK] SymbioseTerminal.exe staged"
           } else {
-            Write-Host "[WARN] SymbioseTerminal.exe not found in artifacts — skipped"
+            Write-Host "  [WARN] SymbioseTerminal.exe not found in artifacts - skipped"
           }
 
           # ── Executables/Drivers/ (INF from source tree) ──
@@ -267,11 +267,11 @@ jobs:
           $pass = 0
           foreach ($f in $required) {
             if (Test-Path $f) {
-              $size = (Get-Item $f).Length
-              Write-Host "[OK] $f ($size bytes)"
+              $sz = (Get-Item $f).Length
+              Write-Host "  [OK] $f - $sz bytes"
               $pass++
             } else {
-              Write-Host "[MISS] $f"
+              Write-Host "  [MISS] $f"
             }
           }
           Write-Host ""
