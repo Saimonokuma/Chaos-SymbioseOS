@@ -126,11 +126,28 @@ jobs:
         shell: powershell
 
       - name: Build symbiose_bridge.sys (KMDF)
-        run: msbuild 02_Symbiose_Bridge/symbiose_bridge.vcxproj /p:Configuration=Release /p:Platform=x64 /p:SignMode=TestSign /p:TestCertificate=$env:SIGN_THUMBPRINT
+        run: msbuild 02_Symbiose_Bridge/symbiose_bridge.vcxproj /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
         shell: powershell
 
       - name: Build SymbioseNull.sys (WDM filter)
-        run: msbuild 02_Symbiose_Bridge/SymbioseNull/SymbioseNull.vcxproj /p:Configuration=Release /p:Platform=x64 /p:SignMode=TestSign /p:TestCertificate=$env:SIGN_THUMBPRINT
+        run: msbuild 02_Symbiose_Bridge/SymbioseNull/SymbioseNull.vcxproj /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
+        shell: powershell
+
+      - name: Test-sign drivers (X.20 - SHA256 for pnputil)
+        run: |
+          # Find signtool from NuGet SDK package
+          $st = (Get-ChildItem "02_Symbiose_Bridge\packages" -Recurse -Filter "signtool.exe" | Select-Object -First 1).FullName
+          if (-not $st) {
+            $st = (Get-ChildItem "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1).FullName
+          }
+          $tp = $env:SIGN_THUMBPRINT
+          Write-Host "[OK] signtool: $st"
+          Write-Host "[OK] cert:     $tp"
+          & $st sign /fd sha256 /ph /sha1 $tp "02_Symbiose_Bridge\x64\Release\symbiose_bridge.sys"
+          if ($LASTEXITCODE -ne 0) { throw "Failed to sign symbiose_bridge.sys" }
+          & $st sign /fd sha256 /ph /sha1 $tp "02_Symbiose_Bridge\SymbioseNull\x64\Release\SymbioseNull.sys"
+          if ($LASTEXITCODE -ne 0) { throw "Failed to sign SymbioseNull.sys" }
+          Write-Host "[OK] Both drivers test-signed with SHA256"
         shell: powershell
 
       - name: Verify driver outputs
