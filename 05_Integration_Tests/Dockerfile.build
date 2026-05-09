@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     musl-tools \
     rdma-core libibverbs-dev librdmacm-dev \
     liburing-dev \
-    libjpeg62-turbo-dev \
+    libjpeg62-turbo-dev libturbojpeg0-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . /src
@@ -46,9 +46,13 @@ RUN echo "=== BUILD 1: Linux Kernel ===" && \
 
 # ══════════════════════════════════════════════════════════════════════════
 # BUILD 2: hive_mind (guest PID 1, musl static)
+# Includes multimodal + OpenMOSIX modules linked as object files
 # ══════════════════════════════════════════════════════════════════════════
 RUN echo "=== BUILD 2: hive_mind ===" && \
-    musl-gcc -static -O2 \
+    musl-gcc -static -O2 -g \
+        -I/src/03_HiveMind_Orchestrator/ChaosLoader/src \
+        -I/src/02_Symbiose_Bridge/inc \
+        -I/src/03_HiveMind_Orchestrator/openmosix_nx/src \
         -o /output/hive_mind \
         /src/03_HiveMind_Orchestrator/ChaosLoader/src/hive_mind_init.c && \
     file /output/hive_mind && \

@@ -98,43 +98,69 @@ jobs:
           retention-days: 30
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # JOB 2: validate-kmdf-driver (CI-002)
-  # WDK driver compilation requires local MSVC + WDK NuGet environment.
-  # No .vcxproj exists yet — validate source tree integrity.
+  # JOB 2: build-kmdf-driver (CI-002)
+  # Compiles symbiose_bridge.sys (KMDF 1.33) + SymbioseNull.sys (WDM)
+  # Uses WDK via NuGet on windows-latest (no full WDK install needed)
   # ═══════════════════════════════════════════════════════════════════════════
-  validate-kmdf-driver:
-    name: "CI-002 · Validate KMDF Driver Sources"
+  build-kmdf-driver:
+    name: "CI-002 · Build KMDF Driver + WDM Filter"
     needs: [build-docker]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate driver source tree
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install WDK (NuGet)
         run: |
-          $required = @(
-            "02_Symbiose_Bridge/src/driver_entry.c",
-            "02_Symbiose_Bridge/src/symbiose_bridge.c",
-            "02_Symbiose_Bridge/src/symbiose_bridge.h",
-            "02_Symbiose_Bridge/src/vmx_hypervisor.c",
-            "02_Symbiose_Bridge/src/ioctl_handler.c",
-            "02_Symbiose_Bridge/src/acpi_handler.c",
-            "02_Symbiose_Bridge/src/nvme_isolation.c",
-            "02_Symbiose_Bridge/src/SwitchToChaos.asm",
-            "02_Symbiose_Bridge/src/trace.h",
-            "02_Symbiose_Bridge/inc/symbiose_ioctl.h",
-            "02_Symbiose_Bridge/inf/SymbioseNull.inf"
-          )
-          $pass = 0
-          foreach ($f in $required) {
-            if (-not (Test-Path $f)) { throw "MISSING: $f" }
-            $size = (Get-Item $f).Length
-            if ($size -eq 0) { throw "EMPTY: $f" }
-            Write-Host "[OK] $f ($size bytes)"
-            $pass++
-          }
-          Write-Host ""
-          Write-Host "KMDF driver validation: $pass/$($required.Count) PASS"
+          # Install WDK NuGet packages for kernel-mode compilation
+          nuget install Microsoft.Windows.WDK.x64 -Version 10.0.26100.1 -OutputDirectory D:\wdk-pkg
+          nuget install Microsoft.Windows.SDK.CPP.x64 -Version 10.0.26100.1 -OutputDirectory D:\wdk-pkg
+          nuget install Microsoft.Windows.SDK.CPP -Version 10.0.26100.1 -OutputDirectory D:\wdk-pkg
+          Write-Host "[OK] WDK NuGet packages installed"
+          Get-ChildItem D:\wdk-pkg -Directory | ForEach-Object { Write-Host "  $($_.Name)" }
         shell: powershell
+
+      - name: Build symbiose_bridge.sys (KMDF)
+        run: |
+          msbuild 02_Symbiose_Bridge/symbiose_bridge.vcxproj `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:DriverType=KMDF `
+            /p:SignMode=TestSign
+        shell: powershell
+
+      - name: Build SymbioseNull.sys (WDM filter)
+        run: |
+          msbuild 02_Symbiose_Bridge/SymbioseNull/SymbioseNull.vcxproj `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:SignMode=TestSign
+        shell: powershell
+
+      - name: Verify driver outputs
+        run: |
+          $drivers = @(
+            "02_Symbiose_Bridge/x64/Release/symbiose_bridge.sys",
+            "02_Symbiose_Bridge/x64/Release/SymbioseNull.sys"
+          )
+          foreach ($f in $drivers) {
+            if (-not (Test-Path $f)) { throw "MISSING: $f" }
+            $sz = (Get-Item $f).Length
+            Write-Host "[OK] $f - $sz bytes"
+          }
+        shell: powershell
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: drivers
+          path: |
+            02_Symbiose_Bridge/x64/Release/symbiose_bridge.sys
+            02_Symbiose_Bridge/x64/Release/symbiose_bridge.cat
+            02_Symbiose_Bridge/x64/Release/SymbioseNull.sys
+            02_Symbiose_Bridge/inf/SymbioseNull.inf
+          retention-days: 30
 
   # ═══════════════════════════════════════════════════════════════════════════
   # JOB 3: build-terminal-ui (CI-005)
@@ -143,7 +169,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   build-terminal-ui:
     name: "CI-005 · Build SymbioseTerminal.exe (Tauri 2.0)"
-    needs: [validate-kmdf-driver]
+    needs: [build-kmdf-driver]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -204,7 +230,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   assemble-apbx:
     name: "CI-004 · Assemble APBX Package"
-    needs: [build-docker, validate-kmdf-driver, build-terminal-ui]
+    needs: [build-docker, build-kmdf-driver, build-terminal-ui]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -233,9 +259,16 @@ jobs:
             Write-Host "  [WARN] SymbioseTerminal.exe not found in artifacts - skipped"
           }
 
-          # ── Executables/Drivers/ (INF from source tree) ──
+          # ── Executables/Drivers/ (compiled .sys from CI-002 + INF) ──
           New-Item -ItemType Directory -Force "$STAGING/Executables/Drivers" | Out-Null
-          Copy-Item "02_Symbiose_Bridge/inf/SymbioseNull.inf" "$STAGING/Executables/Drivers/"
+          Get-ChildItem -Path "artifacts/drivers" -Recurse -Filter "symbiose_bridge.sys" |
+            Copy-Item -Destination "$STAGING/Executables/Drivers/"
+          Get-ChildItem -Path "artifacts/drivers" -Recurse -Filter "symbiose_bridge.cat" |
+            Copy-Item -Destination "$STAGING/Executables/Drivers/"
+          Get-ChildItem -Path "artifacts/drivers" -Recurse -Filter "SymbioseNull.sys" |
+            Copy-Item -Destination "$STAGING/Executables/Drivers/"
+          Get-ChildItem -Path "artifacts/drivers" -Recurse -Filter "SymbioseNull.inf" |
+            Copy-Item -Destination "$STAGING/Executables/Drivers/"
 
           # ── Executables/Kernel/ (from Docker build) ──
           New-Item -ItemType Directory -Force "$STAGING/Executables/Kernel" | Out-Null
@@ -258,9 +291,12 @@ jobs:
             "$STAGING/Executables/ChaosLoader.exe",
             "$STAGING/Executables/symbiose_ircd.exe",
             "$STAGING/Executables/hive_mind",
+            "$STAGING/Executables/SymbioseTerminal.exe",
+            "$STAGING/Executables/Drivers/symbiose_bridge.sys",
+            "$STAGING/Executables/Drivers/SymbioseNull.sys",
+            "$STAGING/Executables/Drivers/SymbioseNull.inf",
             "$STAGING/Executables/Kernel/BZIMAGE",
             "$STAGING/Executables/Kernel/initrd.img",
-            "$STAGING/Executables/Drivers/SymbioseNull.inf",
             "$STAGING/Configuration/main.yml",
             "$STAGING/Configuration/Tasks/ai_act_consensus.yml"
           )
