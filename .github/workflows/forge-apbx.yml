@@ -92,6 +92,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   build-win32-binaries:
     name: "CI-002 · Build Win32 Usermode Binaries"
+    needs: [build-kmdf-driver]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -142,6 +143,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   build-terminal-ui:
     name: "CI-005 · Build SymbioseTerminal.exe (Tauri 2.0)"
+    needs: [build-win32-binaries]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -191,6 +193,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   build-linux:
     name: "CI-003 · Build Linux Kernel, hive_mind, and initrd"
+    needs: [build-terminal-ui]
     runs-on: ubuntu-latest
     container: debian:bookworm
     steps:
