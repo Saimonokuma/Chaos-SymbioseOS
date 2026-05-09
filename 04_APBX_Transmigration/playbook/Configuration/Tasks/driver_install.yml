@@ -1,0 +1,42 @@
+# ══════════════════════════════════════════════════════════════════════════
+# driver_install.yml — Phase 3: KMDF Hypervisor + SymbioseNull Installation
+#
+# Installs symbiose_bridge.sys (Ring-0 hypervisor) and SymbioseNull.sys
+# (NVMe isolation filter) from Executables/Drivers/ into the system.
+#
+# Reference: Interactive_Plan.md §II·3 Job 1, §III, BRIDGE-011
+# Depends: Executables populated by CI-001 (build-kmdf-driver)
+# ══════════════════════════════════════════════════════════════════════════
+title: Install KMDF Hypervisor Driver
+actions:
+  # Copy driver files to System32\drivers
+  - !cmd:
+      command: 'copy /Y "Executables\Drivers\symbiose_bridge.sys" "%SystemRoot%\System32\drivers\"'
+      weight: 20
+
+  - !cmd:
+      command: 'copy /Y "Executables\Drivers\SymbioseNull.sys" "%SystemRoot%\System32\drivers\"'
+      weight: 20
+
+  # Copy the test-signed catalog for driver verification
+  - !cmd:
+      command: 'copy /Y "Executables\Drivers\symbiose_bridge.cat" "%SystemRoot%\System32\CatRoot\{F750E6C3-38EE-11D1-85E5-00C04FC295EE}\"'
+      weight: 10
+
+  # Install SymbioseNull filter using the INF (BRIDGE-011)
+  # UpperFilters AddReg flag 0x00010008 = APPEND (never replace existing filters)
+  - !cmd:
+      command: 'pnputil /add-driver "Executables\Drivers\SymbioseNull.inf" /install'
+      weight: 30
+
+  # Create symbiose_bridge service entry
+  # Type 1 = kernel driver, Start 3 = demand start, ErrorControl 1 = normal
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Services\symbiose_bridge', value: 'Type', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Services\symbiose_bridge', value: 'Start', type: REG_DWORD, data: '3'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Services\symbiose_bridge', value: 'ErrorControl', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Services\symbiose_bridge', value: 'ImagePath', type: REG_EXPAND_SZ, data: '\SystemRoot\System32\drivers\symbiose_bridge.sys'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Services\symbiose_bridge', value: 'DisplayName', type: REG_SZ, data: 'SymbioseOS KMDF Hypervisor Bridge'}
+
+  # Register the driver device interface GUID for ChaosLoader IOCTL access
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\Bridge', value: 'DriverInstalled', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\Bridge', value: 'Version', type: REG_SZ, data: '3.0'}

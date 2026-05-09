@@ -1,0 +1,123 @@
+# ══════════════════════════════════════════════════════════════════════════
+# vbs_destruction.yml — Phase 1a: VBS/HVCI/Memory Integrity Destruction
+#
+# APBX-004 — Group Policy registry overrides to permanently disable:
+#   - Virtualization Based Security (VBS)
+#   - Hypervisor-enforced Code Integrity (HVCI)
+#   - Memory Integrity (Core Isolation)
+#   - Credential Guard
+#
+# Reference:
+#   - Interactive_Plan.md §IX·2 Phase 1 (lines 4389-4397)
+#   - Constraint X·19: VBS destruction requires FULL REBOOT before
+#     symbiose_bridge.sys install (VMXON raises #GP if VBS holds VMX root)
+#
+# Only runs if user checked 'hw-vbs-destroy' on HW FeaturePage (Page 3).
+# ══════════════════════════════════════════════════════════════════════════
+
+title: Phase 1a — VBS/HVCI Destruction
+actions:
+
+  # ── Step 1: Disable VBS via Device Guard registry ───────────────────
+  - !registryValue:
+      path: 'HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard'
+      name: 'EnableVirtualizationBasedSecurity'
+      value: '0'
+      type: REG_DWORD
+
+  - !registryValue:
+      path: 'HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard'
+      name: 'RequirePlatformSecurityFeatures'
+      value: '0'
+      type: REG_DWORD
+
+  # ── Step 2: Disable HVCI (Hypervisor Code Integrity) ────────────────
+  - !registryValue:
+      path: 'HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity'
+      name: 'Enabled'
+      value: '0'
+      type: REG_DWORD
+
+  # ── Step 3: Disable Credential Guard ────────────────────────────────
+  - !registryValue:
+      path: 'HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\CredentialGuard'
+      name: 'Enabled'
+      value: '0'
+      type: REG_DWORD
+
+  # ── Step 4: Disable Memory Integrity (Core Isolation UI toggle) ─────
+  - !registryValue:
+      path: 'HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\SystemGuard'
+      name: 'Enabled'
+      value: '0'
+      type: REG_DWORD
+
+  # ── Step 5: Disable Kernel DMA Protection ───────────────────────────
+  - !registryValue:
+      path: 'HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\KernelShadowStacks'
+      name: 'Enabled'
+      value: '0'
+      type: REG_DWORD
+
+  # ── Step 6: Disable via Group Policy path (belt + suspenders) ───────
+  - !registryValue:
+      path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard'
+      name: 'EnableVirtualizationBasedSecurity'
+      value: '0'
+      type: REG_DWORD
+
+  - !registryValue:
+      path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard'
+      name: 'HypervisorEnforcedCodeIntegrity'
+      value: '0'
+      type: REG_DWORD
+
+  - !registryValue:
+      path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard'
+      name: 'LsaCfgFlags'
+      value: '0'
+      type: REG_DWORD
+
+  # ── Step 7: Disable Hyper-V auto-start (prevents VBS re-activation) ─
+  - !cmd:
+      command: 'bcdedit /set hypervisorlaunchtype off'
+      weight: 20
+
+  # ── Step 8: Mark VBS as SymbioseOS-managed in registry ──────────────
+  - !registryValue:
+      path: 'HKLM\SOFTWARE\SymbioseOS\Infrastructure'
+      name: 'VBS_Destroyed'
+      value: '1'
+      type: REG_DWORD
+
+  # ── Step 9: Verification + reboot warning ───────────────────────────
+  - !powerShell:
+    command: |
+      Write-Host "[VBS-DESTROY] ═══════════════════════════════════════════" -ForegroundColor Red
+      Write-Host "[VBS-DESTROY] VBS/HVCI/Memory Integrity DESTROYED" -ForegroundColor Red
+      Write-Host "[VBS-DESTROY] ═══════════════════════════════════════════" -ForegroundColor Red
+      Write-Host ""
+
+      # Verify registry values
+      $dg = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard" `
+            -Name "EnableVirtualizationBasedSecurity" -ErrorAction SilentlyContinue
+      if ($dg.EnableVirtualizationBasedSecurity -eq 0) {
+          Write-Host "[VBS-DESTROY] ✓ VBS disabled" -ForegroundColor Green
+      } else {
+          Write-Error "[VBS-DESTROY] ✗ VBS still enabled!"
+      }
+
+      $hvci = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" `
+              -Name "Enabled" -ErrorAction SilentlyContinue
+      if ($hvci.Enabled -eq 0) {
+          Write-Host "[VBS-DESTROY] ✓ HVCI disabled" -ForegroundColor Green
+      } else {
+          Write-Error "[VBS-DESTROY] ✗ HVCI still enabled!"
+      }
+
+      Write-Host ""
+      Write-Host "[VBS-DESTROY] ⚠️  X·19: A FULL REBOOT is required before" -ForegroundColor Yellow
+      Write-Host "[VBS-DESTROY]     symbiose_bridge.sys can load." -ForegroundColor Yellow
+      Write-Host "[VBS-DESTROY]     VMXON will raise #GP if VBS hypervisor" -ForegroundColor Yellow
+      Write-Host "[VBS-DESTROY]     still holds VMX root operation." -ForegroundColor Yellow
+    wait: true

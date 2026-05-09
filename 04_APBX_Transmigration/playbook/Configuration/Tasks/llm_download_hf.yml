@@ -1,0 +1,50 @@
+# ══════════════════════════════════════════════════════════════════════════
+# llm_download_hf.yml — Phase 4b: Download F32 Model from HuggingFace
+#
+# Downloads the selected 100B+ F32 model from HuggingFace at install time.
+# Model is NOT bundled in the .apbx — fetched live.
+#
+# Constitutional constraint: F32 only, no quantization (X·5)
+#
+# Reference: Interactive_Plan.md §IX·2, CONFIG-007
+# Option routing: llm-devstral | llm-mistral-large | llm-mixtral-8x22b | llm-local
+# ══════════════════════════════════════════════════════════════════════════
+title: Download F32 Model from HuggingFace
+actions:
+  # Create model storage directory on NVMe tensor store
+  - !cmd:
+      command: 'mkdir "%ProgramFiles%\SymbioseOS\Models" 2>NUL'
+      weight: 5
+
+  # Read selected model from symbiose_config.json and download
+  # Uses curl (built into Windows 10/11) for HuggingFace API
+  # The model_selector.yml already wrote the HF repo ID to config
+  - !cmd:
+      command: >
+        for /f "tokens=*" %%a in ('powershell -Command
+        "(Get-Content 'config\symbiose_config.json' | ConvertFrom-Json).llm.hf_repo_id"')
+        do (
+          echo Downloading model from HuggingFace: %%a
+          powershell -Command "& {
+            $repoId = '%%a';
+            $outDir = \"$env:ProgramFiles\SymbioseOS\Models\";
+            if ($repoId -eq 'local') {
+              Write-Host 'Local model selected — skipping download.';
+              exit 0;
+            }
+            $apiUrl = \"https://huggingface.co/api/models/$repoId\";
+            $modelInfo = Invoke-RestMethod -Uri $apiUrl;
+            $safetensorFiles = $modelInfo.siblings | Where-Object { $_.rfilename -match '\.safetensors$' };
+            foreach ($f in $safetensorFiles) {
+              $url = \"https://huggingface.co/$repoId/resolve/main/$($f.rfilename)\";
+              $dest = Join-Path $outDir $f.rfilename;
+              Write-Host \"Downloading: $($f.rfilename)\";
+              Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing;
+            }
+            Write-Host 'Download complete.';
+          }"
+        )
+      weight: 500
+
+  # Record download completion
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\LLM', value: 'DownloadComplete', type: REG_DWORD, data: '1'}

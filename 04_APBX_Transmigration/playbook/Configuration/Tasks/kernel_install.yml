@@ -1,0 +1,60 @@
+# Tasks/kernel_install.yml — Phase 5: Install SymbioseKernel + initramfs
+#
+# Reference: Interactive_Plan.md §IX·2c
+#
+# Copies the pre-built BZIMAGE and initrd.img from the .apbx Executables
+# directory to the SymbioseOS installation path on the target drive.
+
+actions:
+  - !status: {status: '🚀 Installing SymbioseKernel 64-bit + initramfs...'}
+
+  # 1. Create SymbioseOS directory on target drive
+  - !powerShell:
+      command: |
+        $config = Get-Content "config\symbiose_config.json" | ConvertFrom-Json
+        $installPath = "$env:ProgramData\SymbioseOS\Kernel"
+        New-Item -ItemType Directory -Path $installPath -Force | Out-Null
+        Write-Host "[KERNEL] Install path: $installPath"
+      weight: 10
+
+  # 2. Copy kernel image
+  - !powerShell:
+      command: |
+        $installPath = "$env:ProgramData\SymbioseOS\Kernel"
+        Copy-Item "Executables\Kernel\BZIMAGE" "$installPath\BZIMAGE" -Force
+        Write-Host "[KERNEL] Installed BZIMAGE: $((Get-Item "$installPath\BZIMAGE").Length / 1MB) MB"
+      weight: 30
+
+  # 3. Copy initramfs
+  - !powerShell:
+      command: |
+        $installPath = "$env:ProgramData\SymbioseOS\Kernel"
+        Copy-Item "Executables\Kernel\initrd.img" "$installPath\initrd.img" -Force
+        Write-Host "[KERNEL] Installed initrd.img: $((Get-Item "$installPath\initrd.img").Length / 1KB) KB"
+      weight: 30
+
+  # 4. Write kernel path to registry for ChaosLoader
+  - !registryValue:
+      path: 'HKLM\SOFTWARE\SymbioseOS\Kernel'
+      name: 'BzImagePath'
+      value: '%ProgramData%\SymbioseOS\Kernel\BZIMAGE'
+      type: REG_EXPAND_SZ
+
+  - !registryValue:
+      path: 'HKLM\SOFTWARE\SymbioseOS\Kernel'
+      name: 'InitrdPath'
+      value: '%ProgramData%\SymbioseOS\Kernel\initrd.img'
+      type: REG_EXPAND_SZ
+
+  # 5. Verify installation
+  - !powerShell:
+      command: |
+        $installPath = "$env:ProgramData\SymbioseOS\Kernel"
+        $bz = Get-Item "$installPath\BZIMAGE" -ErrorAction SilentlyContinue
+        $rd = Get-Item "$installPath\initrd.img" -ErrorAction SilentlyContinue
+        if ($bz -and $rd) {
+          Write-Host "[KERNEL] ✓ BZIMAGE ($([math]::Round($bz.Length/1MB,1)) MB) + initrd.img ($([math]::Round($rd.Length/1KB,1)) KB) installed"
+        } else {
+          throw "Kernel installation verification failed"
+        }
+      weight: 10

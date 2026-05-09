@@ -1,0 +1,76 @@
+{
+  "schema_version": "3.0",
+  "session_id": "00000000-0000-0000-0000-000000000000",
+
+  "hardware": {
+    "gpu": [
+      {
+        "friendly_name": "NVIDIA GeForce RTX 4090",
+        "pci_location": "PCI\\VEN_10DE&DEV_2684&SUBSYS_...",
+        "vram_gb": 24,
+        "bar1_gb": 16,
+        "surrendered": true
+      }
+    ],
+    "nvme": [
+      {
+        "friendly_name": "Samsung 990 Pro 2TB",
+        "pci_location": "PCI\\VEN_144D&DEV_A80A&...",
+        "size_gb": 2000,
+        "is_ccd": true,
+        "has_windows_partitions": false
+      }
+    ],
+    "ram_allocation_gb": 32,
+    "vcpu_count": 8,
+    "numa_pinned": true,
+    "numa_node": 0,
+    "high_mmio_mb": 32768
+  },
+
+  "execution": {
+    "mode": "disk-backed",
+    "ramdisk_size_mb": 0,
+    "rootfs_drive_pci": "PCI\\VEN_144D&DEV_A80A&..."
+  },
+
+  "llm": {
+    "model_path": "%ProgramData%\\SymbioseOS\\TensorStore",
+    "model_format": "SafeTensors",
+    "precision": "F32",
+    "param_count_b": 123,
+    "vram_required_gb": 492,
+    "mmproj_path": "",
+    "whisper_model_path": "",
+    "tts_model_path": "",
+    "multimodal": {
+      "enabled": true,
+      "video_enabled": true,
+      "audio_enabled": true,
+      "chat_enabled": true
+    },
+    "hardware_allocation": {
+      "mode": "auto",
+      "gpu_layers": -1,
+      "cpu_threads": 8,
+      "preset": "balanced"
+    },
+    "moviola": {
+      "enabled": true,
+      "delta_threshold": 15,
+      "dvs_mode": false
+    }
+  },
+
+  "cluster": {
+    "ircd_host": "0.0.0.0",
+    "ircd_port": 6697,
+    "rdma_enabled": false,
+    "max_nodes": 64
+  },
+
+  "apbx": {
+    "password": "malte",
+    "encryption": "LZMA2+AES256"
+  }
+}

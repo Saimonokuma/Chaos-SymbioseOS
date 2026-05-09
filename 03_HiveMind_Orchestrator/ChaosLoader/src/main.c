@@ -1,0 +1,502 @@
+/*++
+ * main.c — ChaosLoader.exe Entry Point
+ *
+ * HIVE-LOADER-001 / 004 / 005 / 006
+ *
+ * Reference: Interactive_Plan.md §IV·1 (lines 2016-2054), §V·1 (lines 2213-2227)
+ *
+ * Purpose:
+ *   ChaosLoader.exe is the Ring-3 Windows host process that orchestrates
+ *   the Chaos OS guest lifecycle:
+ *     1. Reads symbiose_config.json for RAM/vCPU/NUMA config
+ *     2. Allocates process memory for guest RAM
+ *     3. Opens the symbiose_bridge.sys device via SetupDi
+ *     4. Sends IOCTLs in sequence: REGISTER_RAM → LOAD_KERNEL → LOAD_INITRD
+ *        → SET_BOOT_PARAMS → EPT_MAP_SHM → VMLAUNCH
+ *     5. Enters async VM-Exit watcher loop
+ *     6. Routes serial output (ttyS0) to Windows console
+ *     7. Handles Death Rattle shutdown acknowledgment
+ *
+ * Dependencies:
+ *   - symbiose_ioctl.h (shared IOCTL codes + structs)
+ *   - cJSON (vendored: cJSON.h + cJSON.c)
+ *   - kernel_ioctls.c (IOCTL wrapper functions)
+ *   - boot_params.c (Linux Boot Protocol 2.13 zero-page builder)
+ *
+ * Constraint X·1: NO WHPX — all VM operations via KMDF IOCTLs only.
+ *--*/
+
+#include <windows.h>
+#include <setupapi.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "../../02_Symbiose_Bridge/inc/symbiose_ioctl.h"
+#include "cJSON.h"
+
+// ── Link against SetupAPI for device enumeration ────────────────────────────
+#pragma comment(lib, "setupapi.lib")
+
+// ── Device Interface GUID (must match symbiose_bridge.h) ────────────────────
+// {DEADBEEF-1234-5678-ABCD-EF0123456789}
+static const GUID GUID_DEVINTERFACE_SYMBIOSE_BRIDGE = {
+    0xDEADBEEF, 0x1234, 0x5678,
+    { 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89 }
+};
+
+// ── Forward declarations ────────────────────────────────────────────────────
+// kernel_ioctls.c
+extern BOOL SymbioseRegisterRam(HANDLE hDevice, PVOID buffer,
+                                 UINT64 sizeBytes, UINT32 numaNode);
+extern BOOL SymbioseLoadPayload(HANDLE hDevice, DWORD ioctlCode,
+                                 PVOID data, UINT64 dataSize,
+                                 UINT64 guestLoadAddr);
+extern BOOL SymbioseSetBootParams(HANDLE hDevice,
+                                   UINT64 initrdGpa, UINT64 initrdSize,
+                                   UINT64 guestRamSize);
+extern BOOL SymbioseEptMapShm(HANDLE hDevice, UINT64 shmSizeBytes,
+                               UINT64 guestPa);
+extern BOOL SymbioseVmLaunch(HANDLE hDevice);
+extern BOOL SymbioseWaitVmExit(HANDLE hDevice, SYMBIOSE_VMEXIT_EVENT* evt);
+
+// ── Symbiose configuration from JSON ────────────────────────────────────────
+typedef struct _SYMBIOSE_CONFIG {
+    UINT64  RamBytes;               // Guest RAM size in bytes
+    UINT32  VcpuCount;              // Number of virtual CPUs
+    UINT32  NumaNode;               // NUMA node to pin allocation (0 = any)
+    BOOL    NumaPinned;             // Whether to pin to specific NUMA node
+    char    KernelPath[MAX_PATH];   // Path to bzImage
+    char    InitrdPath[MAX_PATH];   // Path to initrd.img
+    char    ConfigPath[MAX_PATH];   // Path to symbiose_config.json (for logging)
+} SYMBIOSE_CONFIG;
+
+// ── Guest memory layout constants ───────────────────────────────────────────
+// Reference: §V·2 (line 2262-2284)
+#define GUEST_KERNEL_GPA    0x100000ULL     // 1MB — kernel loads here
+#define GUEST_INITRD_GPA    0x1000000ULL    // 16MB — initrd after kernel
+#define GUEST_BOOT_PARAMS   0x10000ULL      // 64KB — boot_params zero page
+#define GUEST_CMDLINE_GPA   0x11000ULL      // 68KB — kernel command line
+#define SHM_WINDOW_SIZE     0x20000000ULL   // 512MB Neural Bus SHM window
+#define SHM_GUEST_GPA       0x40000000ULL   // 1GB mark — SHM window in guest
+
+// ── Read a file into a malloc'd buffer ──────────────────────────────────────
+static PVOID ReadFileToBuffer(const char* path, UINT64* outSize)
+{
+    HANDLE hFile = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ,
+                               NULL, OPEN_EXISTING, 0, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "[ERROR] Cannot open file: %s (error %lu)\n",
+                path, GetLastError());
+        return NULL;
+    }
+
+    LARGE_INTEGER fileSize;
+    GetFileSizeEx(hFile, &fileSize);
+    *outSize = (UINT64)fileSize.QuadPart;
+
+    PVOID buffer = malloc((size_t)*outSize);
+    if (!buffer) {
+        fprintf(stderr, "[ERROR] Cannot allocate %llu bytes for %s\n",
+                *outSize, path);
+        CloseHandle(hFile);
+        return NULL;
+    }
+
+    DWORD bytesRead;
+    if (!ReadFile(hFile, buffer, (DWORD)*outSize, &bytesRead, NULL) ||
+        bytesRead != (DWORD)*outSize) {
+        fprintf(stderr, "[ERROR] Read failed for %s\n", path);
+        free(buffer);
+        CloseHandle(hFile);
+        return NULL;
+    }
+
+    CloseHandle(hFile);
+    printf("[OK] Loaded %s (%llu bytes)\n", path, *outSize);
+    return buffer;
+}
+
+// ── Parse symbiose_config.json ──────────────────────────────────────────────
+// Uses cJSON to parse the config file generated by APBX Phase 0.
+// Expected fields: ram_gb, vcpu_count, numa_node, numa_pinned,
+//                  kernel_path, initrd_path
+//
+static BOOL ParseConfig(const char* jsonPath, SYMBIOSE_CONFIG* cfg)
+{
+    ZeroMemory(cfg, sizeof(*cfg));
+    strncpy_s(cfg->ConfigPath, MAX_PATH, jsonPath, _TRUNCATE);
+
+    // Read JSON file to string
+    UINT64 jsonSize;
+    char* jsonStr = (char*)ReadFileToBuffer(jsonPath, &jsonSize);
+    if (!jsonStr) return FALSE;
+
+    // Parse JSON
+    cJSON* root = cJSON_Parse(jsonStr);
+    free(jsonStr);
+
+    if (!root) {
+        fprintf(stderr, "[ERROR] JSON parse error: %s\n",
+                cJSON_GetErrorPtr() ? cJSON_GetErrorPtr() : "unknown");
+        return FALSE;
+    }
+
+    // Extract fields with defaults
+    cJSON* ramGb = cJSON_GetObjectItemCaseSensitive(root, "ram_gb");
+    if (cJSON_IsNumber(ramGb)) {
+        cfg->RamBytes = (UINT64)(ramGb->valuedouble) * 1024ULL * 1024ULL * 1024ULL;
+    } else {
+        cfg->RamBytes = 16ULL * 1024ULL * 1024ULL * 1024ULL;  // Default: 16 GB
+        printf("[WARN] ram_gb not found, defaulting to 16 GB\n");
+    }
+
+    cJSON* vcpu = cJSON_GetObjectItemCaseSensitive(root, "vcpu_count");
+    cfg->VcpuCount = cJSON_IsNumber(vcpu) ? (UINT32)vcpu->valueint : 4;
+
+    cJSON* numa = cJSON_GetObjectItemCaseSensitive(root, "numa_node");
+    cfg->NumaNode = cJSON_IsNumber(numa) ? (UINT32)numa->valueint : 0;
+
+    cJSON* numaPinned = cJSON_GetObjectItemCaseSensitive(root, "numa_pinned");
+    cfg->NumaPinned = cJSON_IsTrue(numaPinned);
+
+    cJSON* kernelPath = cJSON_GetObjectItemCaseSensitive(root, "kernel_path");
+    if (cJSON_IsString(kernelPath) && kernelPath->valuestring) {
+        strncpy_s(cfg->KernelPath, MAX_PATH, kernelPath->valuestring, _TRUNCATE);
+    } else {
+        strncpy_s(cfg->KernelPath, MAX_PATH, "bzImage", _TRUNCATE);
+    }
+
+    cJSON* initrdPath = cJSON_GetObjectItemCaseSensitive(root, "initrd_path");
+    if (cJSON_IsString(initrdPath) && initrdPath->valuestring) {
+        strncpy_s(cfg->InitrdPath, MAX_PATH, initrdPath->valuestring, _TRUNCATE);
+    } else {
+        strncpy_s(cfg->InitrdPath, MAX_PATH, "initrd.img", _TRUNCATE);
+    }
+
+    cJSON_Delete(root);
+
+    printf("[OK] Config: RAM=%llu GB, vCPUs=%u, NUMA=%u (pinned=%d)\n",
+           cfg->RamBytes / (1024ULL * 1024 * 1024),
+           cfg->VcpuCount, cfg->NumaNode, cfg->NumaPinned);
+    printf("     Kernel: %s\n", cfg->KernelPath);
+    printf("     Initrd: %s\n", cfg->InitrdPath);
+
+    return TRUE;
+}
+
+// ── Open the symbiose_bridge device via SetupDi ─────────────────────────────
+// Enumerates device interfaces matching GUID_DEVINTERFACE_SYMBIOSE_BRIDGE,
+// then opens the first matching device path.
+//
+static HANDLE OpenSymbioseDevice(void)
+{
+    HDEVINFO devInfoSet = SetupDiGetClassDevsW(
+        &GUID_DEVINTERFACE_SYMBIOSE_BRIDGE,
+        NULL, NULL,
+        DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+
+    if (devInfoSet == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "[ERROR] SetupDiGetClassDevs failed: %lu\n",
+                GetLastError());
+        return INVALID_HANDLE_VALUE;
+    }
+
+    SP_DEVICE_INTERFACE_DATA ifData;
+    ifData.cbSize = sizeof(ifData);
+
+    if (!SetupDiEnumDeviceInterfaces(devInfoSet,
+            NULL, &GUID_DEVINTERFACE_SYMBIOSE_BRIDGE, 0, &ifData)) {
+        fprintf(stderr, "[ERROR] No symbiose_bridge device found (error %lu)\n",
+                GetLastError());
+        SetupDiDestroyDeviceInfoList(devInfoSet);
+        return INVALID_HANDLE_VALUE;
+    }
+
+    // Get required buffer size for device path
+    DWORD requiredSize = 0;
+    SetupDiGetDeviceInterfaceDetailW(devInfoSet, &ifData,
+                                      NULL, 0, &requiredSize, NULL);
+
+    PSP_DEVICE_INTERFACE_DETAIL_DATA_W detailData =
+        (PSP_DEVICE_INTERFACE_DETAIL_DATA_W)malloc(requiredSize);
+    detailData->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W);
+
+    if (!SetupDiGetDeviceInterfaceDetailW(devInfoSet, &ifData,
+            detailData, requiredSize, NULL, NULL)) {
+        fprintf(stderr, "[ERROR] GetDeviceInterfaceDetail failed: %lu\n",
+                GetLastError());
+        free(detailData);
+        SetupDiDestroyDeviceInfoList(devInfoSet);
+        return INVALID_HANDLE_VALUE;
+    }
+
+    // Open device with OVERLAPPED support for async IOCTLs
+    HANDLE hDevice = CreateFileW(
+        detailData->DevicePath,
+        GENERIC_READ | GENERIC_WRITE,
+        0,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_OVERLAPPED,
+        NULL);
+
+    if (hDevice == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "[ERROR] Cannot open device: %lu\n", GetLastError());
+    } else {
+        wprintf(L"[OK] Opened device: %s\n", detailData->DevicePath);
+    }
+
+    free(detailData);
+    SetupDiDestroyDeviceInfoList(devInfoSet);
+    return hDevice;
+}
+
+// ── Allocate guest RAM buffer ───────────────────────────────────────────────
+// Uses VirtualAlloc with MEM_LARGE_PAGES if available.
+// Falls back to standard 4KB pages.
+//
+static PVOID AllocateGuestRam(SYMBIOSE_CONFIG* cfg)
+{
+    PVOID buffer = NULL;
+
+    // Try NUMA-aware allocation first
+    if (cfg->NumaPinned) {
+        buffer = VirtualAllocExNuma(
+            GetCurrentProcess(),
+            NULL,
+            (SIZE_T)cfg->RamBytes,
+            MEM_RESERVE | MEM_COMMIT,
+            PAGE_READWRITE,
+            cfg->NumaNode);
+
+        if (buffer) {
+            printf("[OK] Guest RAM allocated: %llu GB (NUMA node %u)\n",
+                   cfg->RamBytes / (1024ULL * 1024 * 1024), cfg->NumaNode);
+            return buffer;
+        }
+        printf("[WARN] NUMA allocation failed, falling back to default\n");
+    }
+
+    // Standard allocation
+    buffer = VirtualAlloc(
+        NULL,
+        (SIZE_T)cfg->RamBytes,
+        MEM_RESERVE | MEM_COMMIT,
+        PAGE_READWRITE);
+
+    if (!buffer) {
+        fprintf(stderr, "[ERROR] VirtualAlloc failed for %llu GB: %lu\n",
+                cfg->RamBytes / (1024ULL * 1024 * 1024), GetLastError());
+        return NULL;
+    }
+
+    printf("[OK] Guest RAM allocated: %llu GB\n",
+           cfg->RamBytes / (1024ULL * 1024 * 1024));
+
+    // Zero the buffer (Linux kernel expects zeroed RAM)
+    ZeroMemory(buffer, (SIZE_T)cfg->RamBytes);
+
+    return buffer;
+}
+
+// ── VM-Exit watcher loop ────────────────────────────────────────────────────
+// Reference: §IV·1 (lines 2016-2054)
+//
+// This is the inverted-call pattern: we pre-dispatch an async IOCTL,
+// the kernel holds it pending, and completes it when a VM-Exit occurs.
+//
+static void VmExitWatcherLoop(HANDLE hDevice)
+{
+    printf("\n[VMEXITLOOP] Entering VM-Exit watcher loop...\n");
+
+    while (TRUE) {
+        SYMBIOSE_VMEXIT_EVENT evt;
+        ZeroMemory(&evt, sizeof(evt));
+
+        if (!SymbioseWaitVmExit(hDevice, &evt)) {
+            fprintf(stderr, "[ERROR] WAIT_VMEXIT IOCTL failed: %lu\n",
+                    GetLastError());
+            break;
+        }
+
+        // ── Death Rattle: shutdown imminent ──────────────────────────────
+        if (evt.IsShutdownImminent) {
+            printf("\n[DEATH_RATTLE] Shutdown imminent — "
+                   "checkpointing state...\n");
+
+            // TODO: Forward SHUTDOWN_IMMINENT to IRCd Neural Bus
+            // For now, immediately ACK
+            DWORD bytesReturned;
+            DeviceIoControl(hDevice, IOCTL_SYMBIOSE_SHUTDOWN_ACK,
+                            NULL, 0, NULL, 0, &bytesReturned, NULL);
+
+            printf("[DEATH_RATTLE] ACK sent — shutdown proceeding.\n");
+            break;
+        }
+
+        // ── Serial output (port 0x3F8) ──────────────────────────────────
+        // HIVE-LOADER-006: Route guest ttyS0 to Windows console
+        if (evt.ExitReason == 30 && evt.SerialByte != 0) {
+            // VM-Exit reason 30 = I/O Instruction
+            // SerialByte filled by HandleVmExit when port == 0x3F8
+            putchar(evt.SerialByte);
+            fflush(stdout);
+            continue;
+        }
+
+        // ── Triple fault (exit reason 2) ────────────────────────────────
+        // HIVE-LOADER-005: Dump guest registers
+        if (evt.ExitReason == 2) {
+            printf("\n\n===== TRIPLE FAULT — GUEST CRASH DUMP =====\n");
+            printf("  RIP    = 0x%016llX\n", evt.GuestRIP);
+            printf("  CR0    = 0x%016llX\n", evt.GuestCR0);
+            printf("  CR2    = 0x%016llX  (page fault addr)\n", evt.GuestCR2);
+            printf("  CR3    = 0x%016llX  (page table root)\n", evt.GuestCR3);
+            printf("  RAX    = 0x%016llX\n", evt.GuestRAX);
+            printf("  ExitQ  = 0x%016llX\n", evt.ExitQualification);
+            printf("============================================\n\n");
+            break;
+        }
+
+        // ── Other VM-Exit reasons ───────────────────────────────────────
+        printf("[VMEXIT] Reason=%u RIP=0x%llX RAX=0x%llX\n",
+               evt.ExitReason, evt.GuestRIP, evt.GuestRAX);
+    }
+
+    printf("[VMEXITLOOP] Exiting watcher loop.\n");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── main ─────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// Usage: ChaosLoader.exe [config.json]
+//
+// If no config path is given, defaults to "symbiose_config.json" in CWD.
+//
+// Boot sequence (Reference: §V·1 lines 2213-2227):
+//   1. Parse JSON config
+//   2. Open symbiose_bridge device
+//   3. Allocate guest RAM (VirtualAlloc)
+//   4. IOCTL: REGISTER_RAM
+//   5. Load bzImage → IOCTL: LOAD_KERNEL
+//   6. Load initrd.img → IOCTL: LOAD_INITRD
+//   7. IOCTL: SET_BOOT_PARAMS (zero page)
+//   8. IOCTL: EPT_MAP_SHM (512MB Neural Bus window)
+//   9. IOCTL: VMLAUNCH
+//  10. Enter VM-Exit watcher loop
+//
+int main(int argc, char* argv[])
+{
+    printf("=== ChaosLoader.exe — SymbioseOS V3 ===\n");
+    printf("Constraint X-1: NO WHPX — pure KMDF IOCTL boot\n\n");
+
+    // ── Step 1: Parse configuration ─────────────────────────────────────
+    const char* configPath = (argc > 1) ? argv[1] : "symbiose_config.json";
+
+    SYMBIOSE_CONFIG cfg;
+    if (!ParseConfig(configPath, &cfg)) {
+        fprintf(stderr, "[FATAL] Cannot load config from %s\n", configPath);
+        return 1;
+    }
+
+    // ── Step 2: Open symbiose_bridge device ─────────────────────────────
+    HANDLE hDevice = OpenSymbioseDevice();
+    if (hDevice == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "[FATAL] Cannot open symbiose_bridge device\n");
+        return 1;
+    }
+
+    // ── Step 3: Allocate guest RAM ──────────────────────────────────────
+    PVOID guestRam = AllocateGuestRam(&cfg);
+    if (!guestRam) {
+        fprintf(stderr, "[FATAL] Guest RAM allocation failed\n");
+        CloseHandle(hDevice);
+        return 1;
+    }
+
+    // ── Step 4: REGISTER_RAM ────────────────────────────────────────────
+    printf("\n[BOOT] Step 1/6: Registering guest RAM...\n");
+    if (!SymbioseRegisterRam(hDevice, guestRam, cfg.RamBytes,
+                              cfg.NumaPinned ? cfg.NumaNode : 0)) {
+        fprintf(stderr, "[FATAL] REGISTER_RAM IOCTL failed\n");
+        goto cleanup;
+    }
+    printf("[OK] Guest RAM registered with driver\n");
+
+    // ── Step 5: Load kernel (bzImage) ───────────────────────────────────
+    printf("[BOOT] Step 2/6: Loading kernel...\n");
+    UINT64 kernelSize;
+    PVOID kernelData = ReadFileToBuffer(cfg.KernelPath, &kernelSize);
+    if (!kernelData) {
+        fprintf(stderr, "[FATAL] Cannot load kernel: %s\n", cfg.KernelPath);
+        goto cleanup;
+    }
+
+    if (!SymbioseLoadPayload(hDevice, IOCTL_SYMBIOSE_LOAD_KERNEL,
+                              kernelData, kernelSize, GUEST_KERNEL_GPA)) {
+        fprintf(stderr, "[FATAL] LOAD_KERNEL IOCTL failed\n");
+        free(kernelData);
+        goto cleanup;
+    }
+    free(kernelData);
+    printf("[OK] Kernel loaded at GPA 0x%llX\n", GUEST_KERNEL_GPA);
+
+    // ── Step 6: Load initrd ─────────────────────────────────────────────
+    printf("[BOOT] Step 3/6: Loading initrd...\n");
+    UINT64 initrdSize;
+    PVOID initrdData = ReadFileToBuffer(cfg.InitrdPath, &initrdSize);
+    if (!initrdData) {
+        fprintf(stderr, "[FATAL] Cannot load initrd: %s\n", cfg.InitrdPath);
+        goto cleanup;
+    }
+
+    if (!SymbioseLoadPayload(hDevice, IOCTL_SYMBIOSE_LOAD_INITRD,
+                              initrdData, initrdSize, GUEST_INITRD_GPA)) {
+        fprintf(stderr, "[FATAL] LOAD_INITRD IOCTL failed\n");
+        free(initrdData);
+        goto cleanup;
+    }
+    free(initrdData);
+    printf("[OK] Initrd loaded at GPA 0x%llX (%llu bytes)\n",
+           GUEST_INITRD_GPA, initrdSize);
+
+    // ── Step 7: Set boot params (zero page) ─────────────────────────────
+    printf("[BOOT] Step 4/7: Building boot_params zero page...\n");
+    if (!SymbioseSetBootParams(hDevice, GUEST_INITRD_GPA,
+                                initrdSize, cfg.RamBytes)) {
+        fprintf(stderr, "[FATAL] SET_BOOT_PARAMS IOCTL failed\n");
+        goto cleanup;
+    }
+    printf("[OK] Boot params set at GPA 0x%llX\n", GUEST_BOOT_PARAMS);
+
+    // ── Step 8: EPT_MAP_SHM (512MB Neural Bus window) ───────────────────
+    // Reference: §V·1 (line 2225) — maps SHM into guest EPT
+    printf("[BOOT] Step 5/7: Mapping SHM window into guest EPT...\n");
+    if (!SymbioseEptMapShm(hDevice, SHM_WINDOW_SIZE, SHM_GUEST_GPA)) {
+        fprintf(stderr, "[FATAL] EPT_MAP_SHM IOCTL failed\n");
+        goto cleanup;
+    }
+    printf("[OK] SHM window mapped: %llu MB at guest GPA 0x%llX\n",
+           SHM_WINDOW_SIZE / (1024 * 1024), SHM_GUEST_GPA);
+
+    // ── Step 9: VMLAUNCH ────────────────────────────────────────────────
+    printf("[BOOT] Step 6/7: Triggering VMLAUNCH...\n");
+    if (!SymbioseVmLaunch(hDevice)) {
+        fprintf(stderr, "[FATAL] VMLAUNCH IOCTL failed\n");
+        goto cleanup;
+    }
+    printf("[OK] VMLAUNCH succeeded — guest is running!\n\n");
+
+    // ── Step 10: VM-Exit watcher loop ───────────────────────────────────
+    printf("[BOOT] Step 7/7: Entering VM-Exit watcher loop...\n");
+    VmExitWatcherLoop(hDevice);
+
+cleanup:
+    printf("\n[CLEANUP] Releasing resources...\n");
+    if (guestRam) VirtualFree(guestRam, 0, MEM_RELEASE);
+    if (hDevice != INVALID_HANDLE_VALUE) CloseHandle(hDevice);
+    printf("[EXIT] ChaosLoader terminated.\n");
+    return 0;
+}

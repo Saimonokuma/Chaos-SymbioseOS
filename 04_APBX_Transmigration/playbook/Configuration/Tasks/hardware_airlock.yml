@@ -1,0 +1,208 @@
+# ══════════════════════════════════════════════════════════════════════════
+# hardware_airlock.yml — Phase 2: DDA GPU Passthrough + NVMe Isolation
+#
+# APBX-003 — Implements the Hardware Airlock sequence:
+#   1. Read GPU/NVMe selections from symbiose_config.json
+#   2. For each surrendered GPU: Disable → Dismount → Set-VM MMIO → Add-VM
+#   3. For each CCD NVMe: SymbioseNull filter attachment
+#
+# Reference:
+#   - Interactive_Plan.md §IX·2 Phase 2 (lines 4399-4404)
+#   - Constraint X·18: MMIO formula = 2 × BAR1_GB × GPU_count × 1024
+#   - Constraint X·19: VBS must be destroyed BEFORE this phase (Phase 1)
+#
+# Only runs if user selected 'hw-gpu-passthrough' on HW FeaturePage.
+# ══════════════════════════════════════════════════════════════════════════
+
+title: Phase 2 — Hardware Airlock (DDA + NVMe Isolation)
+actions:
+
+  # ── Step 1: Read config and validate prerequisites ──────────────────
+  - !powerShell:
+    command: |
+      $configPath = "$env:ProgramData\SymbioseOS\symbiose_config.json"
+
+      if (-not (Test-Path $configPath)) {
+          Write-Error "[AIRLOCK] FATAL: symbiose_config.json not found at $configPath"
+          Write-Error "[AIRLOCK] Phase 0 must complete before Phase 2."
+          exit 1
+      }
+
+      $config = Get-Content $configPath -Raw | ConvertFrom-Json
+
+      # Validate VBS was destroyed in Phase 1
+      $vbsKey = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard" `
+                -Name "EnableVirtualizationBasedSecurity" -ErrorAction SilentlyContinue
+      if ($vbsKey -and $vbsKey.EnableVirtualizationBasedSecurity -ne 0) {
+          Write-Error "[AIRLOCK] FATAL: VBS is still enabled! Phase 1 must complete first."
+          Write-Error "[AIRLOCK] Run vbs_destruction.yml before hardware_airlock.yml."
+          exit 1
+      }
+
+      Write-Host "[AIRLOCK] Config loaded. GPUs: $($config.hardware.gpu.Count), NVMe: $($config.hardware.nvme.Count)" -ForegroundColor Cyan
+      Write-Host "[AIRLOCK] MMIO space: $($config.hardware.high_mmio_mb) MB" -ForegroundColor Cyan
+    wait: true
+
+  # ── Step 2: DDA GPU Passthrough ─────────────────────────────────────
+  # For each surrendered GPU:
+  #   Disable-PnpDevice → Dismount-VMHostAssignableDevice → Add-VMAssignableDevice
+  # MMIO auto-calculated in Phase 0 (CONFIG-008)
+  - !powerShell:
+    command: |
+      $configPath = "$env:ProgramData\SymbioseOS\symbiose_config.json"
+      $config = Get-Content $configPath -Raw | ConvertFrom-Json
+
+      $gpus = $config.hardware.gpu | Where-Object { $_.surrendered -eq $true }
+
+      if ($gpus.Count -eq 0) {
+          Write-Host "[AIRLOCK] No GPUs selected for passthrough — skipping DDA" -ForegroundColor Yellow
+          exit 0
+      }
+
+      Write-Host "[AIRLOCK] ═══════════════════════════════════════════════" -ForegroundColor Cyan
+      Write-Host "[AIRLOCK] DDA GPU Passthrough — $($gpus.Count) GPU(s)" -ForegroundColor Cyan
+      Write-Host "[AIRLOCK] ═══════════════════════════════════════════════" -ForegroundColor Cyan
+
+      foreach ($gpu in $gpus) {
+          $pciPath = $gpu.pci_location
+          $name = $gpu.friendly_name
+
+          Write-Host ""
+          Write-Host "[AIRLOCK] Processing: $name" -ForegroundColor Green
+          Write-Host "[AIRLOCK] PCI: $pciPath" -ForegroundColor DarkGray
+
+          # Step 2a: Disable the PnP device
+          Write-Host "[AIRLOCK]   → Disabling PnP device..." -ForegroundColor Yellow
+          try {
+              $device = Get-PnpDevice | Where-Object { $_.InstanceId -eq $pciPath } | Select-Object -First 1
+              if ($device) {
+                  Disable-PnpDevice -InstanceId $pciPath -Confirm:$false -ErrorAction Stop
+                  Write-Host "[AIRLOCK]   ✓ Device disabled" -ForegroundColor Green
+              } else {
+                  Write-Warning "[AIRLOCK]   ! Device not found by InstanceId — trying by name"
+                  $device = Get-PnpDevice -Class Display | Where-Object {
+                      $_.FriendlyName -eq $name
+                  } | Select-Object -First 1
+
+                  if ($device) {
+                      Disable-PnpDevice -InstanceId $device.InstanceId -Confirm:$false -ErrorAction Stop
+                      Write-Host "[AIRLOCK]   ✓ Device disabled (by name match)" -ForegroundColor Green
+                  } else {
+                      Write-Error "[AIRLOCK]   ✗ GPU not found: $name"
+                      continue
+                  }
+              }
+          } catch {
+              Write-Error "[AIRLOCK]   ✗ Disable failed: $_"
+              continue
+          }
+
+          # Step 2b: Dismount from host
+          Write-Host "[AIRLOCK]   → Dismounting from host..." -ForegroundColor Yellow
+          try {
+              $locationPath = (Get-PnpDeviceProperty -InstanceId $pciPath `
+                  -KeyName "DEVPKEY_Device_LocationPaths" -ErrorAction SilentlyContinue
+              ).Data | Where-Object { $_ -match "^PCIROOT" } | Select-Object -First 1
+
+              if ($locationPath) {
+                  Dismount-VMHostAssignableDevice -LocationPath $locationPath -Force -ErrorAction Stop
+                  Write-Host "[AIRLOCK]   ✓ Dismounted: $locationPath" -ForegroundColor Green
+              } else {
+                  Write-Warning "[AIRLOCK]   ! Could not resolve PCIROOT path — DDA may fail"
+              }
+          } catch {
+              Write-Error "[AIRLOCK]   ✗ Dismount failed: $_"
+              continue
+          }
+      }
+
+      # Step 2c: Set High MMIO space (X·18: formula = 2 × BAR1 × GPU_count × 1024)
+      $mmioMb = $config.hardware.high_mmio_mb
+      Write-Host ""
+      Write-Host "[AIRLOCK] Setting High MMIO space: $mmioMb MB" -ForegroundColor Cyan
+
+      # Store MMIO value for driver install phase
+      $infraPath = "HKLM:\SOFTWARE\SymbioseOS\Infrastructure"
+      if (-not (Test-Path $infraPath)) {
+          New-Item -Path $infraPath -Force | Out-Null
+      }
+      Set-ItemProperty -Path $infraPath -Name "HighMMIO_MB" -Value $mmioMb -Type DWord
+      Write-Host "[AIRLOCK] ✓ MMIO value stored in registry" -ForegroundColor Green
+
+      Write-Host ""
+      Write-Host "[AIRLOCK] DDA GPU passthrough complete." -ForegroundColor Green
+      Write-Host "[AIRLOCK] GPUs will be available to VMX guest after reboot." -ForegroundColor Green
+    wait: true
+
+  # ── Step 3: NVMe CCD Isolation ──────────────────────────────────────
+  # Prepare NVMe drives for SymbioseNull filter attachment.
+  # The actual filter is installed in Phase 3 (driver_install.yml).
+  # This step stores PCI paths for SymbioseNull.inf HW ID patching.
+  - !powerShell:
+    command: |
+      $configPath = "$env:ProgramData\SymbioseOS\symbiose_config.json"
+      $config = Get-Content $configPath -Raw | ConvertFrom-Json
+
+      $drives = $config.hardware.nvme | Where-Object { $_.is_ccd -eq $true }
+
+      if ($drives.Count -eq 0) {
+          Write-Host "[AIRLOCK] No CCD drives selected — skipping NVMe isolation" -ForegroundColor Yellow
+          exit 0
+      }
+
+      Write-Host "[AIRLOCK] ═══════════════════════════════════════════════" -ForegroundColor Cyan
+      Write-Host "[AIRLOCK] NVMe CCD Isolation — $($drives.Count) drive(s)" -ForegroundColor Cyan
+      Write-Host "[AIRLOCK] ═══════════════════════════════════════════════" -ForegroundColor Cyan
+
+      # Store CCD PCI paths for SymbioseNull.inf HW ID patching
+      $ccdPaths = @()
+
+      foreach ($drv in $drives) {
+          $pciPath = $drv.pci_location
+          $name = $drv.friendly_name
+
+          Write-Host "[AIRLOCK]   CCD: $name" -ForegroundColor Green
+          Write-Host "[AIRLOCK]   PCI: $pciPath" -ForegroundColor DarkGray
+
+          # Safety check: refuse to isolate Windows boot drive
+          if ($drv.has_windows_partitions) {
+              Write-Error "[AIRLOCK]   ✗ REFUSING to isolate $name — contains Windows partitions!"
+              Write-Error "[AIRLOCK]     This would make Windows unbootable."
+              continue
+          }
+
+          $ccdPaths += $pciPath
+      }
+
+      # Write CCD paths to registry for driver_install.yml to consume
+      $infraPath = "HKLM:\SOFTWARE\SymbioseOS\Infrastructure"
+      if (-not (Test-Path $infraPath)) {
+          New-Item -Path $infraPath -Force | Out-Null
+      }
+      Set-ItemProperty -Path $infraPath -Name "CCD_Paths" -Value ($ccdPaths -join ";") -Type String
+      Set-ItemProperty -Path $infraPath -Name "CCD_Count" -Value $ccdPaths.Count -Type DWord
+
+      Write-Host ""
+      Write-Host "[AIRLOCK] NVMe CCD paths stored for SymbioseNull driver." -ForegroundColor Green
+      Write-Host "[AIRLOCK] Filter will be attached in Phase 3 (driver_install.yml)." -ForegroundColor Green
+    wait: true
+
+  # ── Step 4: Verification ────────────────────────────────────────────
+  - !powerShell:
+    command: |
+      Write-Host "[AIRLOCK] ═══════════════════════════════════════════════" -ForegroundColor Cyan
+      Write-Host "[AIRLOCK] HARDWARE AIRLOCK VERIFICATION" -ForegroundColor Cyan
+      Write-Host "[AIRLOCK] ═══════════════════════════════════════════════" -ForegroundColor Cyan
+
+      $infraPath = "HKLM:\SOFTWARE\SymbioseOS\Infrastructure"
+      $infra = Get-ItemProperty -Path $infraPath -ErrorAction SilentlyContinue
+
+      if ($infra) {
+          Write-Host "[AIRLOCK]   MMIO: $($infra.HighMMIO_MB) MB" -ForegroundColor Green
+          Write-Host "[AIRLOCK]   CCD drives: $($infra.CCD_Count)" -ForegroundColor Green
+          Write-Host "[AIRLOCK]   CCD paths: $($infra.CCD_Paths)" -ForegroundColor DarkGray
+      }
+
+      Write-Host ""
+      Write-Host "[AIRLOCK] Phase 2 complete. Proceed to Phase 3 (driver install)." -ForegroundColor Green
+    wait: true
