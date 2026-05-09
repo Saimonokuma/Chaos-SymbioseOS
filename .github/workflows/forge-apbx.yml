@@ -112,22 +112,34 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Install Windows Driver Kit (full WDK)
+      - name: Verify Windows Driver Kit (WDK)
         run: |
-          # Install full WDK for tracewpp.exe (WPP tracing) + kernel build targets
+          # WDK 10.0.26100 is pre-installed on windows-latest (Windows Server 2025).
+          # Verify tracewpp.exe + kernel build targets exist before MSBuild.
           # Ref: Interactive_Plan.md §II - WDK 10.0.26100
-          Write-Host "Installing WDK via winget..."
-          winget install --id Microsoft.WindowsWDK --exact --accept-source-agreements --accept-package-agreements --silent
-          Write-Host "[OK] WDK installed"
-
-          # Verify tracewpp.exe exists
-          $wpp = Get-ChildItem "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "tracewpp.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($wpp) {
-            Write-Host "[OK] tracewpp.exe found: $($wpp.FullName)"
-          } else {
-            Write-Host "[WARN] tracewpp.exe not found - checking alternate paths..."
-            Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Directory | ForEach-Object { Write-Host "  $($_.Name)" }
+          $wpp = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "tracewpp.exe" -ErrorAction SilentlyContinue |
+                 Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1
+          if (-not $wpp) {
+            # Fallback: check any arch
+            $wpp = Get-ChildItem "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "tracewpp.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
           }
+          if ($wpp) {
+            Write-Host "[OK] tracewpp.exe: $($wpp.FullName)"
+          } else {
+            throw "FATAL: tracewpp.exe not found — WDK is not installed on this runner"
+          }
+
+          # Verify WDK MSBuild targets
+          $wdkTargets = "C:\Program Files (x86)\Windows Kits\10\build"
+          if (Test-Path $wdkTargets) {
+            Write-Host "[OK] WDK build targets: $wdkTargets"
+          } else {
+            throw "FATAL: WDK build targets not found at $wdkTargets"
+          }
+
+          # List WDK version
+          $ver = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include" -Directory | Select-Object -Last 1
+          Write-Host "[OK] WDK version: $($ver.Name)"
         shell: powershell
 
       - name: Build symbiose_bridge.sys (KMDF)
