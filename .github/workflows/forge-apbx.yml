@@ -117,11 +117,11 @@ jobs:
         shell: powershell
 
       - name: Build symbiose_bridge.sys (KMDF)
-        run: msbuild 02_Symbiose_Bridge/symbiose_bridge.vcxproj /p:Configuration=Release /p:Platform=x64
+        run: msbuild 02_Symbiose_Bridge/symbiose_bridge.vcxproj /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
         shell: powershell
 
       - name: Build SymbioseNull.sys (WDM filter)
-        run: msbuild 02_Symbiose_Bridge/SymbioseNull/SymbioseNull.vcxproj /p:Configuration=Release /p:Platform=x64
+        run: msbuild 02_Symbiose_Bridge/SymbioseNull/SymbioseNull.vcxproj /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
         shell: powershell
 
       - name: Verify driver outputs
