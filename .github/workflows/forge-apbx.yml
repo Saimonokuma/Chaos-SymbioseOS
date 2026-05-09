@@ -135,10 +135,12 @@ jobs:
 
       - name: Test-sign drivers (X.20 - SHA256 for pnputil)
         run: |
-          # Find signtool from NuGet SDK package
-          $st = (Get-ChildItem "02_Symbiose_Bridge\packages" -Recurse -Filter "signtool.exe" | Select-Object -First 1).FullName
+          # Find signtool from NuGet SDK package (must be x64, not arm64)
+          $st = (Get-ChildItem "02_Symbiose_Bridge\packages" -Recurse -Filter "signtool.exe" |
+            Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1).FullName
           if (-not $st) {
-            $st = (Get-ChildItem "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1).FullName
+            $st = (Get-ChildItem "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1).FullName
           }
           $tp = $env:SIGN_THUMBPRINT
           Write-Host "[OK] signtool: $st"
