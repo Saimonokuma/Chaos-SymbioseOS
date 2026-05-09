@@ -20,9 +20,13 @@ name: "Forge APBX — SymbioseOS Build Pipeline"
 on:
   push:
     branches: [main, "release/*"]
+    tags: ["v*"]
   pull_request:
     branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ENV: Shared constants across all jobs
@@ -257,14 +261,14 @@ jobs:
         run: |
           $STAGING = "${{ env.STAGING_DIR }}"
 
-          # ── Executables/ (from Docker build) ──
+          # Executables/ (from Docker build)
           New-Item -ItemType Directory -Force "$STAGING/Executables" | Out-Null
           Get-ChildItem -Path "artifacts/docker-binaries" -Recurse -Filter "ChaosLoader.exe" |
             Copy-Item -Destination "$STAGING/Executables/"
           Get-ChildItem -Path "artifacts/docker-binaries" -Recurse -Filter "symbiose_ircd.exe" |
             Copy-Item -Destination "$STAGING/Executables/"
 
-          # ── Executables/ (Terminal UI from Tauri build) ──
+          # Executables/ (Terminal UI from Tauri build)
           $tauriExe = Get-ChildItem -Path "artifacts/terminal-ui" -Recurse -Filter "*.exe" | Select-Object -First 1
           if ($tauriExe) {
             Copy-Item $tauriExe.FullName "$STAGING/Executables/SymbioseTerminal.exe"
@@ -273,7 +277,7 @@ jobs:
             Write-Host "  [WARN] SymbioseTerminal.exe not found in artifacts - skipped"
           }
 
-          # ── Executables/Drivers/ (compiled .sys from CI-002 + INF) ──
+          # Executables/Drivers/ (compiled .sys from CI-002 + INF)
           New-Item -ItemType Directory -Force "$STAGING/Executables/Drivers" | Out-Null
           Get-ChildItem -Path "artifacts/drivers" -Recurse -Filter "symbiose_bridge.sys" |
             Copy-Item -Destination "$STAGING/Executables/Drivers/"
@@ -284,22 +288,22 @@ jobs:
           Get-ChildItem -Path "artifacts/drivers" -Recurse -Filter "SymbioseNull.inf" |
             Copy-Item -Destination "$STAGING/Executables/Drivers/"
 
-          # ── Executables/Kernel/ (from Docker build) ──
+          # Executables/Kernel/ (from Docker build)
           New-Item -ItemType Directory -Force "$STAGING/Executables/Kernel" | Out-Null
           Get-ChildItem -Path "artifacts/docker-binaries" -Recurse -Filter "BZIMAGE" |
             Copy-Item -Destination "$STAGING/Executables/Kernel/"
           Get-ChildItem -Path "artifacts/docker-binaries" -Recurse -Filter "initrd.img" |
             Copy-Item -Destination "$STAGING/Executables/Kernel/"
 
-          # ── hive_mind binary ──
+          # hive_mind binary
           Get-ChildItem -Path "artifacts/docker-binaries" -Recurse -Filter "hive_mind" |
             Copy-Item -Destination "$STAGING/Executables/"
 
-          # ── Verify all staged files ──
+          # Verify all staged files
           Write-Host ""
-          Write-Host "══════════════════════════════════════════════════"
+          Write-Host "=================================================="
           Write-Host "  APBX Package Contents"
-          Write-Host "══════════════════════════════════════════════════"
+          Write-Host "=================================================="
           $required = @(
             "$STAGING/playbook.conf",
             "$STAGING/Executables/ChaosLoader.exe",
@@ -339,7 +343,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   # JOB 5: seal-and-upload (CI-004b)
   # 7z LZMA2+AES256 seal → GitHub Release on tag push
-  # Password: "malte" (§II·4 playbook.conf)
+  # Password: "malte" (playbook.conf)
   # ═══════════════════════════════════════════════════════════════════════════
   seal-and-upload:
     name: "CI-004 · Seal APBX + GitHub Release"
@@ -353,16 +357,15 @@ jobs:
           name: apbx-staged
           path: ${{ env.STAGING_DIR }}/
 
-      # Seal the playbook into a password-protected .apbx archive
       - name: Seal .apbx archive
         run: |
-          cd 04_APBX_Transmigration
+          cd ${{ env.STAGING_DIR }}
           7z a -t7z -p"${{ env.APBX_PASSWORD }}" -mhe=on -m0=lzma2 -mx=9 `
-            ../Chaos-SymbioseOS.apbx `
-            playbook/
+            ../../Chaos-SymbioseOS.apbx `
+            ./*
           # Verify archive integrity
-          7z l -p"${{ env.APBX_PASSWORD }}" ../Chaos-SymbioseOS.apbx | Select-String "playbook.conf"
-          $sz = (Get-Item ../Chaos-SymbioseOS.apbx).Length
+          7z l -p"${{ env.APBX_PASSWORD }}" ../../Chaos-SymbioseOS.apbx | Select-String "playbook.conf"
+          $sz = (Get-Item ../../Chaos-SymbioseOS.apbx).Length
           $msg = '[OK] Chaos-SymbioseOS.apbx sealed (' + $sz + ' bytes)'
           Write-Host $msg
         shell: powershell
