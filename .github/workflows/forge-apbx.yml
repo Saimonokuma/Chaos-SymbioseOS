@@ -126,13 +126,11 @@ jobs:
         shell: powershell
 
       - name: Build symbiose_bridge.sys (KMDF)
-        run: |
-          msbuild 02_Symbiose_Bridge/symbiose_bridge.vcxproj /p:Configuration=Release /p:Platform=x64 /p:SignMode=TestSign /p:TestCertificate=$env:SIGN_THUMBPRINT /p:Inf2CatWindowsVersionList="10_x64" /p:FileDigestAlgorithm=SHA256
+        run: msbuild 02_Symbiose_Bridge/symbiose_bridge.vcxproj /p:Configuration=Release /p:Platform=x64 /p:SignMode=TestSign /p:TestCertificate=$env:SIGN_THUMBPRINT
         shell: powershell
 
       - name: Build SymbioseNull.sys (WDM filter)
-        run: |
-          msbuild 02_Symbiose_Bridge/SymbioseNull/SymbioseNull.vcxproj /p:Configuration=Release /p:Platform=x64 /p:SignMode=TestSign /p:TestCertificate=$env:SIGN_THUMBPRINT /p:FileDigestAlgorithm=SHA256
+        run: msbuild 02_Symbiose_Bridge/SymbioseNull/SymbioseNull.vcxproj /p:Configuration=Release /p:Platform=x64 /p:SignMode=TestSign /p:TestCertificate=$env:SIGN_THUMBPRINT
         shell: powershell
 
       - name: Verify driver outputs
