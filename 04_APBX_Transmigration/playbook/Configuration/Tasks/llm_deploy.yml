@@ -1,0 +1,40 @@
+# ══════════════════════════════════════════════════════════════════════════
+# llm_deploy.yml — Phase 4b: Deploy Model to NVMe Tensor Store
+#
+# Configures the downloaded F32 model for llama-server consumption.
+# Sets up model path, tensor format, and context window parameters.
+#
+# Reference: Interactive_Plan.md §IX·2, §XVII·3
+# Runs after: llm_download_hf.yml
+# ══════════════════════════════════════════════════════════════════════════
+title: Deploy LLM to Tensor Store
+actions:
+  # Read model config and set up llama-server launch parameters
+  - !cmd:
+      command: >
+        powershell -Command "& {
+          $config = Get-Content 'config\symbiose_config.json' | ConvertFrom-Json;
+          $modelDir = \"$env:ProgramFiles\SymbioseOS\Models\";
+          $format = $config.llm.format;
+          $modelPath = if ($config.llm.hf_repo_id -eq 'local') { $config.llm.local_path } else { $modelDir };
+          # Write llama-server launch config
+          $launchConfig = @{
+            model_path = $modelPath;
+            format = $format;
+            ctx_size = 131072;
+            n_gpu_layers = 999;
+            host = '127.0.0.1';
+            port = 8080;
+            f32_precision = $true;
+            no_quantization = $true;
+          } | ConvertTo-Json -Depth 3;
+          Set-Content -Path \"$env:ProgramFiles\SymbioseOS\llama_config.json\" -Value $launchConfig;
+          Write-Host 'LLM deployment config written.';
+        }"
+      weight: 30
+
+  # Register model location and format in system registry
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\LLM', value: 'ModelPath', type: REG_SZ, data: '%ProgramFiles%\SymbioseOS\Models'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\LLM', value: 'Format', type: REG_SZ, data: 'SafeTensors'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\LLM', value: 'Precision', type: REG_SZ, data: 'F32'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\LLM', value: 'Deployed', type: REG_DWORD, data: '1'}

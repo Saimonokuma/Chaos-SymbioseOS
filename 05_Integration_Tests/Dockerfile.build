@@ -1,0 +1,117 @@
+# ══════════════════════════════════════════════════════════════════════════
+# Dockerfile.build — Multi-target SymbioseOS Builder
+#
+# Builds 6 targets in a single container:
+#   1. x86_64 BZIMAGE (Linux kernel v6.12)
+#   2. hive_mind (musl static, guest PID 1)
+#   3. symbiose_ircd (musl static, guest)
+#   4. ChaosLoader.exe (MinGW-w64 cross-compile)
+#   5. symbiose_ircd.exe (MinGW-w64 cross-compile)
+#   6. initrd.img (cpio+gzip)
+#
+# All outputs land in /output/
+# ══════════════════════════════════════════════════════════════════════════
+
+FROM debian:bookworm AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential bc flex bison libssl-dev libelf-dev \
+    cpio gzip wget file ca-certificates git \
+    gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 \
+    mingw-w64-tools cmake \
+    musl-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY . /src
+WORKDIR /src
+RUN mkdir -p /output
+
+# ══════════════════════════════════════════════════════════════════════════
+# BUILD 1: x86_64 Linux Kernel
+# ══════════════════════════════════════════════════════════════════════════
+RUN echo "=== BUILD 1: Linux Kernel ===" && \
+    git clone --depth=1 --branch v6.12 \
+        https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git \
+        /kernel-src && \
+    cp 01_Chaos_Kernel/symbiose_defconfig /kernel-src/arch/x86/configs/ && \
+    cd /kernel-src && \
+    make ARCH=x86_64 symbiose_defconfig && \
+    make ARCH=x86_64 -j$(nproc) bzImage && \
+    cp arch/x86/boot/bzImage /output/BZIMAGE && \
+    file /output/BZIMAGE && \
+    echo "=== KERNEL BUILD COMPLETE ==="
+
+# ══════════════════════════════════════════════════════════════════════════
+# BUILD 2: hive_mind (guest PID 1, musl static)
+# ══════════════════════════════════════════════════════════════════════════
+RUN echo "=== BUILD 2: hive_mind ===" && \
+    musl-gcc -static -O2 \
+        -o /output/hive_mind \
+        /src/03_HiveMind_Orchestrator/ChaosLoader/src/hive_mind_init.c && \
+    file /output/hive_mind && \
+    echo "=== hive_mind BUILD COMPLETE ==="
+
+# ══════════════════════════════════════════════════════════════════════════
+# BUILD 3: symbiose_ircd (guest, musl static)
+# ══════════════════════════════════════════════════════════════════════════
+RUN echo "=== BUILD 3: symbiose_ircd (guest) ===" && \
+    musl-gcc -static -O2 \
+        -o /output/symbiose_ircd \
+        /src/03_HiveMind_Orchestrator/IRCd_Neural_Bus/src/ircd_guest_main.c && \
+    file /output/symbiose_ircd && \
+    echo "=== symbiose_ircd (guest) BUILD COMPLETE ==="
+
+# ══════════════════════════════════════════════════════════════════════════
+# BUILD 4: ChaosLoader.exe (MinGW-w64 cross-compile)
+# ══════════════════════════════════════════════════════════════════════════
+RUN echo "=== BUILD 4: ChaosLoader.exe ===" && \
+    cd /src/03_HiveMind_Orchestrator/ChaosLoader/src && \
+    wget -q https://raw.githubusercontent.com/DaveGamble/cJSON/v1.7.18/cJSON.c && \
+    wget -q https://raw.githubusercontent.com/DaveGamble/cJSON/v1.7.18/cJSON.h && \
+    x86_64-w64-mingw32-gcc -O2 -DUNICODE -D_UNICODE -D_WIN32_WINNT=0x0A00 \
+        -I. -I/src/02_Symbiose_Bridge/inc/ \
+        main.c kernel_ioctls.c boot_params.c cJSON.c \
+        -o /output/ChaosLoader.exe \
+        -lsetupapi -lws2_32 && \
+    file /output/ChaosLoader.exe && \
+    echo "=== ChaosLoader.exe BUILD COMPLETE ==="
+
+# ══════════════════════════════════════════════════════════════════════════
+# BUILD 5: symbiose_ircd.exe (Win32 cross-compile)
+# ══════════════════════════════════════════════════════════════════════════
+RUN echo "=== BUILD 5: symbiose_ircd.exe ===" && \
+    cd /src/03_HiveMind_Orchestrator/IRCd_Neural_Bus/src && \
+    x86_64-w64-mingw32-gcc -O2 -D_WIN32_WINNT=0x0A00 \
+        -I. \
+        symbiose_ircd.c ctcp_dcc.c dcc_tensor.c shm_ring.c \
+        xdcc_bot.c tensor_index.c irc_qos.c jumbo_payload.c \
+        -o /output/symbiose_ircd.exe \
+        -lws2_32 && \
+    file /output/symbiose_ircd.exe && \
+    echo "=== symbiose_ircd.exe BUILD COMPLETE ==="
+
+# ══════════════════════════════════════════════════════════════════════════
+# BUILD 6: initrd.img (cpio + gzip)
+# ══════════════════════════════════════════════════════════════════════════
+RUN echo "=== BUILD 6: initrd.img ===" && \
+    mkdir -p /initrd/sbin /initrd/proc /initrd/sys /initrd/dev /initrd/etc /initrd/tmp && \
+    cp /output/hive_mind /initrd/sbin/hive_mind && \
+    cp /output/symbiose_ircd /initrd/sbin/symbiose_ircd && \
+    chmod +x /initrd/sbin/* && \
+    ln -s /sbin/hive_mind /initrd/init && \
+    cd /initrd && \
+    find . | cpio -o -H newc 2>/dev/null | gzip -9 > /output/initrd.img && \
+    ls -la /output/initrd.img && \
+    echo "=== initrd.img BUILD COMPLETE ==="
+
+# ── Final verification ───────────────────────────────────────────────────
+RUN echo "" && \
+    echo "══════════════════════════════════════════════════════════" && \
+    echo "  SymbioseOS Build Complete" && \
+    echo "══════════════════════════════════════════════════════════" && \
+    ls -lh /output/ && \
+    echo "" && \
+    file /output/* && \
+    echo "══════════════════════════════════════════════════════════"
+
+CMD ["echo", "Build complete. Use: docker cp symbiose-build:/output/. ./build/"]

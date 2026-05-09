@@ -1,0 +1,39 @@
+# ══════════════════════════════════════════════════════════════════════════
+# ircd_setup.yml — Phase 4a: IRC Neural Bus Deployment
+#
+# Deploys symbiose_ircd.exe (host-side IRCv3 server) and configures
+# the SHM ring buffer for multimodal IPC.
+#
+# Reference: Interactive_Plan.md §VII (IRC Neural Bus), HIVE-IRC-001
+# Depends: Executables populated by CI-002 (build-win32-binaries)
+# Option: net-irc-bus (Page 4 of playbook.conf)
+# ══════════════════════════════════════════════════════════════════════════
+title: Deploy IRC Neural Bus
+actions:
+  # Install symbiose_ircd.exe to SymbioseOS program directory
+  - !cmd:
+      command: 'mkdir "%ProgramFiles%\SymbioseOS\IRCd" 2>NUL & copy /Y "Executables\symbiose_ircd.exe" "%ProgramFiles%\SymbioseOS\IRCd\"'
+      weight: 20
+
+  # Configure IRC Neural Bus — 7 channels, SHM ring, localhost-only binding
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd', value: 'BindAddress', type: REG_SZ, data: '127.0.0.1'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd', value: 'Port', type: REG_DWORD, data: '6667'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd', value: 'SHMRingSlots', type: REG_DWORD, data: '8'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd', value: 'SHMSlotSize', type: REG_DWORD, data: '536870912'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd', value: 'MaxClients', type: REG_DWORD, data: '32'}
+
+  # IRC channel topology (§VII·1): 7 mandatory channels
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd\Channels', value: 'Channel0', type: REG_SZ, data: '#oracle'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd\Channels', value: 'Channel1', type: REG_SZ, data: '#recon'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd\Channels', value: 'Channel2', type: REG_SZ, data: '#hive-mind'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd\Channels', value: 'Channel3', type: REG_SZ, data: '#cluster-announce'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd\Channels', value: 'Channel4', type: REG_SZ, data: '#telemetry'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd\Channels', value: 'Channel5', type: REG_SZ, data: '#checkpoint'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd\Channels', value: 'Channel6', type: REG_SZ, data: '#neural-jam'}
+
+  # Register as Windows service (auto-start, run before ChaosLoader)
+  - !cmd:
+      command: 'sc create SymbioseIRCd type= own start= auto binPath= "%ProgramFiles%\SymbioseOS\IRCd\symbiose_ircd.exe" DisplayName= "SymbioseOS IRC Neural Bus"'
+      weight: 30
+
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd', value: 'Installed', type: REG_DWORD, data: '1'}

@@ -1,0 +1,55 @@
+# Tasks/telemetry_bind.yml — Telemetry Disable
+#
+# Reference: Interactive_Plan.md §I·2
+#
+# Disables Windows telemetry and data collection services that could
+# interfere with the hypervisor's low-latency operation or leak
+# information about the Chaos OS guest.
+
+actions:
+  - !status: {status: '🔒 Disabling Windows telemetry...'}
+
+  # 1. Disable Connected User Experiences and Telemetry service
+  - !cmd:
+      command: 'sc config DiagTrack start= disabled'
+      weight: 20
+
+  - !cmd:
+      command: 'sc stop DiagTrack'
+      weight: 10
+
+  # 2. Disable Diagnostic Policy Service
+  - !cmd:
+      command: 'sc config DPS start= disabled'
+      weight: 10
+
+  # 3. Registry: Set telemetry level to Security (0 = off)
+  - !registryValue:
+      path: 'HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection'
+      name: 'AllowTelemetry'
+      value: '0'
+      type: REG_DWORD
+
+  # 4. Disable Application Experience
+  - !cmd:
+      command: 'sc config AeLookupSvc start= disabled'
+      weight: 10
+
+  # 5. Block telemetry hosts via hosts file
+  - !powerShell:
+      command: |
+        $hosts = @(
+          "0.0.0.0 vortex.data.microsoft.com",
+          "0.0.0.0 vortex-win.data.microsoft.com",
+          "0.0.0.0 telecommand.telemetry.microsoft.com",
+          "0.0.0.0 settings-win.data.microsoft.com"
+        )
+        $hostsFile = "$env:SystemRoot\System32\drivers\etc\hosts"
+        $existing = Get-Content $hostsFile -ErrorAction SilentlyContinue
+        foreach ($entry in $hosts) {
+          if ($existing -notcontains $entry) {
+            Add-Content -Path $hostsFile -Value $entry
+          }
+        }
+        Write-Host "[TELEMETRY] Telemetry hosts blocked"
+      weight: 20

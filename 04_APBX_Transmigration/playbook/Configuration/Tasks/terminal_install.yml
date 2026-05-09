@@ -1,0 +1,44 @@
+# ══════════════════════════════════════════════════════════════════════════
+# terminal_install.yml — Phase 6: Install SymbioseTerminal (Optional)
+#
+# Installs the Tauri 2.0 multimodal host client (SymbioseTerminal.exe).
+# Only runs if 'ui-terminal' was checked on Page 4 of playbook.conf.
+#
+# Reference: Interactive_Plan.md §XVIII, CI-005
+# Depends: Executables populated by CI-005 (build-terminal-ui)
+# Option: ui-terminal (Page 4 of playbook.conf)
+# ══════════════════════════════════════════════════════════════════════════
+title: Install SymbioseTerminal
+actions:
+  # Create SymbioseTerminal installation directory
+  - !cmd:
+      command: 'mkdir "%ProgramFiles%\SymbioseOS\Terminal" 2>NUL'
+      weight: 5
+
+  # Copy SymbioseTerminal.exe from CI-built artifacts
+  - !cmd:
+      command: 'copy /Y "Executables\SymbioseTerminal.exe" "%ProgramFiles%\SymbioseOS\Terminal\"'
+      weight: 20
+
+  # Create Start Menu shortcut
+  - !cmd:
+      command: >
+        powershell -Command "& {
+          $shell = New-Object -ComObject WScript.Shell;
+          $shortcut = $shell.CreateShortcut(\"$env:ProgramData\Microsoft\Windows\Start Menu\Programs\SymbioseTerminal.lnk\");
+          $shortcut.TargetPath = \"$env:ProgramFiles\SymbioseOS\Terminal\SymbioseTerminal.exe\";
+          $shortcut.Description = 'SymbioseOS Multimodal AI Terminal';
+          $shortcut.WorkingDirectory = \"$env:ProgramFiles\SymbioseOS\Terminal\";
+          $shortcut.Save();
+        }"
+      weight: 10
+
+  # Register Terminal in system registry
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\Terminal', value: 'InstallPath', type: REG_SZ, data: '%ProgramFiles%\SymbioseOS\Terminal\SymbioseTerminal.exe'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\Terminal', value: 'Installed', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\Terminal', value: 'Version', type: REG_SZ, data: '3.0'}
+
+  # Configure Terminal to auto-connect to IRC Neural Bus on launch
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\Terminal', value: 'IRCdHost', type: REG_SZ, data: '127.0.0.1'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\Terminal', value: 'IRCdPort', type: REG_DWORD, data: '6667'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\Terminal', value: 'SHMEnabled', type: REG_DWORD, data: '1'}

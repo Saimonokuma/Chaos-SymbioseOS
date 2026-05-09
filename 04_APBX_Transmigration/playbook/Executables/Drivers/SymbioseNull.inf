@@ -1,0 +1,79 @@
+; SymbioseNull.inf — NVMe Isolation Upper Filter
+;
+; BRIDGE-011: INF for the SymbioseNull WDM filter driver
+;
+; Reference: Interactive_Plan.md §III·6 (lines 1707-1776)
+;
+; Purpose:
+;   Installed by the APBX hardware_airlock.yml task.
+;   The [Models] section HW ID is patched dynamically by APBX
+;   with the actual PCI ID from symbiose_config.json (nvme_pci_paths).
+;
+; WARNING: The UpperFilters AddReg flag 0x00010008 means REG_MULTI_SZ + APPEND.
+;   This APPENDS SymbioseNull to existing upper filters rather than replacing.
+;   If the disk has existing upper filters (e.g. volume encryption), they
+;   remain intact and SymbioseNull fires last in the chain.
+
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = DiskDrive
+ClassGuid   = {4D36E967-E325-11CE-BFC1-08002BE10318}
+Provider    = %ManufacturerName%
+DriverVer   = 05/06/2026,3.0.0.0
+CatalogFile = SymbioseNull.cat
+
+[DestinationDirs]
+DefaultDestDir = 12            ; %windir%\System32\drivers
+
+[SourceDisksNames]
+1 = %DiskName%
+
+[SourceDisksFiles]
+SymbioseNull.sys = 1
+
+[Manufacturer]
+%ManufacturerName% = Standard, NTamd64
+
+[Standard.NTamd64]
+; APBX task patches this line with HW ID from symbiose_config.json
+%NVMe_DeviceDesc% = SymbioseNull_Install, PCI\VEN_144D&DEV_A80A
+
+[SymbioseNull_Install.NTamd64]
+CopyFiles = SymbioseNull_CopyFiles
+
+[SymbioseNull_Install.NTamd64.HW]
+AddReg = SymbioseNull_HWAddReg
+
+[SymbioseNull_HWAddReg]
+; Register as upper filter — 0x00010008 = REG_MULTI_SZ + APPEND
+HKR,,"UpperFilters",0x00010008,"SymbioseNull"
+
+[SymbioseNull_Install.NTamd64.Services]
+AddService = SymbioseNull, 0x00000002, SymbioseNull_Service
+
+[SymbioseNull_Service]
+DisplayName    = %ServiceName%
+ServiceType    = 1    ; SERVICE_KERNEL_DRIVER
+StartType      = 3    ; SERVICE_DEMAND_START
+ErrorControl   = 1    ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\SymbioseNull.sys
+LoadOrderGroup = PnP Filter
+
+[SymbioseNull_CopyFiles]
+SymbioseNull.sys
+
+[SymbioseNull_Install.NTamd64.Wdf]
+KmdfService = SymbioseNull, SymbioseNull_wdfsect
+
+[SymbioseNull_wdfsect]
+; No KMDF version needed — this is a pure WDM filter
+; But INF must declare section to avoid WHQL warnings
+
+[MessageSignaledInterruptProperties]
+MSISupported = 1
+
+[Strings]
+ManufacturerName  = "SymbioseOS"
+DiskName          = "SymbioseNull Installation Disk"
+ServiceName       = "Symbiose NVMe Null Filter"
+NVMe_DeviceDesc   = "Symbiose NVMe Isolation Filter"

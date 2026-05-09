@@ -1,0 +1,3 @@
+# Placeholder — clean Linux 6.x LTS source tree goes here (KERNEL-001)
+# Do NOT copy from CHAOS 1.5/. Start from upstream kernel.org.
+# See §I·2, §XIV·5, §XVII·1 for kernel config requirements.
