@@ -116,30 +116,26 @@ jobs:
         run: |
           # WDK 10.0.26100 is pre-installed on windows-latest (Windows Server 2025).
           # Verify tracewpp.exe + kernel build targets exist before MSBuild.
-          # Ref: Interactive_Plan.md §II - WDK 10.0.26100
           $wpp = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "tracewpp.exe" -ErrorAction SilentlyContinue |
                  Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1
           if (-not $wpp) {
-            # Fallback: check any arch
             $wpp = Get-ChildItem "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "tracewpp.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
           }
           if ($wpp) {
-            Write-Host "[OK] tracewpp.exe: $($wpp.FullName)"
+            $msg = "[OK] tracewpp.exe: " + $wpp.FullName
+            Write-Host $msg
           } else {
-            throw "FATAL: tracewpp.exe not found — WDK is not installed on this runner"
+            throw "FATAL: tracewpp.exe not found - WDK is not installed on this runner"
           }
-
-          # Verify WDK MSBuild targets
           $wdkTargets = "C:\Program Files (x86)\Windows Kits\10\build"
           if (Test-Path $wdkTargets) {
-            Write-Host "[OK] WDK build targets: $wdkTargets"
+            Write-Host "[OK] WDK build targets found"
           } else {
-            throw "FATAL: WDK build targets not found at $wdkTargets"
+            throw "FATAL: WDK build targets not found"
           }
-
-          # List WDK version
           $ver = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include" -Directory | Select-Object -Last 1
-          Write-Host "[OK] WDK version: $($ver.Name)"
+          $msg = "[OK] WDK version: " + $ver.Name
+          Write-Host $msg
         shell: powershell
 
       - name: Build symbiose_bridge.sys (KMDF)
@@ -218,13 +214,15 @@ jobs:
             Where-Object { $_.Name -match "SymbioseTerminal|symbiose" } |
             Select-Object -First 1
           if ($exe) {
-            Write-Host "[OK] $($exe.FullName) ($($exe.Length) bytes)"
+            $msg = '[OK] ' + $exe.FullName + ' (' + $exe.Length + ' bytes)'
+            Write-Host $msg
           } else {
             # Fallback: check release dir
             $releaseDir = "06_Terminal_UI/src-tauri/target/release"
             if (Test-Path $releaseDir) {
               Get-ChildItem $releaseDir -Filter "*.exe" | ForEach-Object {
-                Write-Host "[OK] $($_.FullName) ($($_.Length) bytes)"
+                $msg = '[OK] ' + $_.FullName + ' (' + $_.Length + ' bytes)'
+                Write-Host $msg
               }
             } else {
               throw "No executable found in Tauri target directory"
@@ -327,7 +325,8 @@ jobs:
             }
           }
           Write-Host ""
-          Write-Host "APBX staged: $pass/$($required.Count) files present"
+          $msg = 'APBX staged: ' + $pass + '/' + $required.Count + ' files present'
+          Write-Host $msg
           if ($pass -lt 7) { throw "Critical files missing from APBX package" }
         shell: powershell
 
@@ -363,7 +362,9 @@ jobs:
             playbook/
           # Verify archive integrity
           7z l -p"${{ env.APBX_PASSWORD }}" ../Chaos-SymbioseOS.apbx | Select-String "playbook.conf"
-          Write-Host "[OK] Chaos-SymbioseOS.apbx sealed ($(( Get-Item ../Chaos-SymbioseOS.apbx).Length) bytes)"
+          $sz = (Get-Item ../Chaos-SymbioseOS.apbx).Length
+          $msg = '[OK] Chaos-SymbioseOS.apbx sealed (' + $sz + ' bytes)'
+          Write-Host $msg
         shell: powershell
 
       - name: Upload .apbx artifact
