@@ -14,63 +14,72 @@
 <Project DefaultTargets="Build" ToolsVersion="12.0"
          xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
+  <!-- Required: ProjectConfigurations ItemGroup -->
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
   <PropertyGroup Label="Globals">
     <ProjectGuid>{B2C3D4E5-F6A7-8901-BCDE-F12345678901}</ProjectGuid>
-    <TemplateGuid>{497e31cb-056b-4f31-abb8-447fd55ee5a5}</TemplateGuid>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <MinimumVisualStudioVersion>12.0</MinimumVisualStudioVersion>
-    <Configuration>Release</Configuration>
-    <Platform>x64</Platform>
+    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+    <Platform Condition="'$(Platform)' == ''">x64</Platform>
     <RootNamespace>SymbioseNull</RootNamespace>
-    <DriverType>WDM</DriverType>
-    <DriverTargetPlatform>Universal</DriverTargetPlatform>
+    <ProjectName>SymbioseNull</ProjectName>
   </PropertyGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
 
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <ConfigurationType>Driver</ConfigurationType>
-    <DriverType>WDM</DriverType>
-    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
 
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <ConfigurationType>Driver</ConfigurationType>
-    <DriverType>WDM</DriverType>
-    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
     <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
 
-  <PropertyGroup>
-    <OutDir>$(SolutionDir)x64\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)x64\$(Configuration)\obj\$(ProjectName)\</IntDir>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(ProjectDir)x64\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)x64\$(Configuration)\obj\</IntDir>
     <TargetName>SymbioseNull</TargetName>
     <TargetExt>.sys</TargetExt>
   </PropertyGroup>
 
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <PreprocessorDefinitions>_AMD64_;NTDDI_VERSION=0x0A00000C;_WIN32_WINNT=0x0A00;WINVER=0x0A00;WINNT=1;POOL_NX_OPTIN=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\inc;$(ProjectDir)..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_AMD64_;NTDDI_VERSION=0x0A00000C;_WIN32_WINNT=0x0A00;WINVER=0x0A00;WINNT=1;POOL_NX_OPTIN=1;_KERNEL_MODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\inc;$(ProjectDir)..\src;$(WDK_INC_KM);$(WDK_INC_SHARED);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWarningAsError>false</TreatWarningAsError>
       <Optimization>MinSpace</Optimization>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <WarningLevel>Level4</WarningLevel>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>$(DDK_LIB_PATH)\ntoskrnl.lib;$(DDK_LIB_PATH)\hal.lib;$(DDK_LIB_PATH)\wdmsec.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Native</SubSystem>
       <EntryPointSymbol>DriverEntry</EntryPointSymbol>
+      <AdditionalDependencies>ntoskrnl.lib;hal.lib;wdmsec.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(WDK_LIB_KM);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <Driver>Driver</Driver>
     </Link>
   </ItemDefinitionGroup>
 
-  <!--
-    SymbioseNull uses nvme_isolation.c from the parent project.
-    It contains a separate DriverEntry that registers IRP_MJ_* suppression handlers.
-    The driver acts as a WDM Upper Filter, making GPU/NVMe invisible to Windows.
-  -->
+  <!-- Source: nvme_isolation.c from parent project -->
   <ItemGroup>
     <ClCompile Include="..\src\nvme_isolation.c" />
   </ItemGroup>
@@ -81,10 +90,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Inf Include="..\inf\SymbioseNull.inf" />
+    <None Include="..\inf\SymbioseNull.inf" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-  </ImportGroup>
 </Project>

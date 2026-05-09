@@ -11,59 +11,80 @@
 <Project DefaultTargets="Build" ToolsVersion="12.0"
          xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
+  <!-- Required: ProjectConfigurations ItemGroup -->
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
   <PropertyGroup Label="Globals">
     <ProjectGuid>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</ProjectGuid>
-    <TemplateGuid>{1bc93793-694f-48fe-9372-81e2b05556fd}</TemplateGuid>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <MinimumVisualStudioVersion>12.0</MinimumVisualStudioVersion>
-    <Configuration>Release</Configuration>
-    <Platform>x64</Platform>
+    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+    <Platform Condition="'$(Platform)' == ''">x64</Platform>
     <RootNamespace>symbiose_bridge</RootNamespace>
-    <DriverType>KMDF</DriverType>
-    <DriverTargetPlatform>Universal</DriverTargetPlatform>
-    <KMDF_VERSION_MAJOR>1</KMDF_VERSION_MAJOR>
-    <KMDF_VERSION_MINOR>33</KMDF_VERSION_MINOR>
+    <ProjectName>symbiose_bridge</ProjectName>
   </PropertyGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
 
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <ConfigurationType>Driver</ConfigurationType>
-    <DriverType>KMDF</DriverType>
-    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
 
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <ConfigurationType>Driver</ConfigurationType>
-    <DriverType>KMDF</DriverType>
-    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
     <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
 
-  <PropertyGroup>
-    <OutDir>$(SolutionDir)x64\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)x64\$(Configuration)\obj\$(ProjectName)\</IntDir>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(ProjectDir)x64\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)x64\$(Configuration)\obj\</IntDir>
+    <TargetName>symbiose_bridge</TargetName>
+    <TargetExt>.sys</TargetExt>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(ProjectDir)x64\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)x64\$(Configuration)\obj\</IntDir>
     <TargetName>symbiose_bridge</TargetName>
     <TargetExt>.sys</TargetExt>
   </PropertyGroup>
 
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <PreprocessorDefinitions>_AMD64_;NTDDI_VERSION=0x0A00000C;_WIN32_WINNT=0x0A00;WINVER=0x0A00;WINNT=1;POOL_NX_OPTIN=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)inc;$(ProjectDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <WppEnabled>true</WppEnabled>
-      <WppScanConfigurationData>src\trace.h</WppScanConfigurationData>
+      <PreprocessorDefinitions>_AMD64_;NTDDI_VERSION=0x0A00000C;_WIN32_WINNT=0x0A00;WINVER=0x0A00;WINNT=1;POOL_NX_OPTIN=1;_KERNEL_MODE;KMDF_VERSION_MAJOR=1;KMDF_VERSION_MINOR=33;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)inc;$(ProjectDir)src;$(WDK_INC_KM);$(WDK_INC_KMDF);$(WDK_INC_SHARED);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWarningAsError>false</TreatWarningAsError>
       <Optimization>MaxSpeed</Optimization>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <WarningLevel>Level4</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>$(DDK_LIB_PATH)\ntoskrnl.lib;$(DDK_LIB_PATH)\hal.lib;$(DDK_LIB_PATH)\wdmsec.lib;$(KMDF_LIB_PATH)\$(KMDF_VER_PATH)\WdfLdr.lib;$(KMDF_LIB_PATH)\$(KMDF_VER_PATH)\WdfDriverEntry.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Native</SubSystem>
       <EntryPointSymbol>FxDriverEntry</EntryPointSymbol>
+      <AdditionalDependencies>ntoskrnl.lib;hal.lib;wdmsec.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(WDK_LIB_KM);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <Driver>Driver</Driver>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
 
@@ -91,12 +112,13 @@
     <ClInclude Include="inc\symbiose_ioctl.h" />
   </ItemGroup>
 
-  <!-- INF file for driver installation -->
+  <!-- INF file -->
   <ItemGroup>
-    <Inf Include="inf\SymbioseNull.inf" />
+    <None Include="inf\SymbioseNull.inf" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
   </ImportGroup>
 </Project>
