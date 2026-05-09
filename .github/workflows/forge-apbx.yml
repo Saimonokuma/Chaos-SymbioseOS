@@ -28,11 +28,11 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   # JOB 1: build-kmdf-driver (CI-001)
   # §II·3 Job 1 — WDK/MSBuild: symbiose_bridge.sys + SymbioseNull.sys
-  # Runner: Self-hosted Windows with WDK 10.0.26100+
+  # Runner: GitHub-hosted Windows (WDK installed via setup action)
   # ═══════════════════════════════════════════════════════════════════════════
   build-kmdf-driver:
     name: "CI-001 · Build KMDF Driver + WDM Filter"
-    runs-on: [self-hosted, windows, wdk]
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -85,14 +85,14 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   # JOB 2: build-win32-binaries (CI-002)
   # §II·3 Job 2 — MinGW-w64: ChaosLoader.exe + symbiose_ircd.exe
-  # Runner: Self-hosted Windows
+  # Runner: GitHub-hosted Windows (MinGW installed via setup action)
   # Build flags (§II·5):
   #   ChaosLoader:    -O3 -flto -static-libgcc -municode
   #   symbiose_ircd:  -O3 -flto -static-libgcc -lws2_32
   # ═══════════════════════════════════════════════════════════════════════════
   build-win32-binaries:
     name: "CI-002 · Build Win32 Usermode Binaries"
-    runs-on: [self-hosted, windows, wdk]
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -138,11 +138,11 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   # JOB 3: build-terminal-ui (CI-005)
   # §II·3 Job 3 — Tauri 2.0 (Rust + React): SymbioseTerminal.exe
-  # Runner: Self-hosted Windows (needs Rust + Node.js + MSVC)
+  # Runner: GitHub-hosted Windows (Rust + Node.js installed via setup actions)
   # ═══════════════════════════════════════════════════════════════════════════
   build-terminal-ui:
     name: "CI-005 · Build SymbioseTerminal.exe (Tauri 2.0)"
-    runs-on: [self-hosted, windows, wdk]
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -300,7 +300,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   assemble-apbx:
     name: "CI-004 · Assemble APBX Package"
-    runs-on: [self-hosted, windows, wdk]
+    runs-on: windows-latest
     needs: [build-kmdf-driver, build-win32-binaries, build-terminal-ui, build-linux]
     steps:
       - uses: actions/checkout@v4
@@ -375,7 +375,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   seal-and-upload:
     name: "CI-004 · Seal APBX + GitHub Release"
-    runs-on: [self-hosted, windows, wdk]
+    runs-on: windows-latest
     needs: [assemble-apbx]
     steps:
       - uses: actions/checkout@v4
