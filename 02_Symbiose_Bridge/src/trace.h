@@ -18,24 +18,6 @@
 #pragma once
 
 //
-// SYMBIOSE_NO_WPP: When defined, all WPP tracing is stubbed out.
-// Use this for CI builds where the WPP preprocessor is not available.
-// The .tmh auto-generated headers are only needed when WPP is active.
-//
-#ifdef SYMBIOSE_NO_WPP
-
-// Stub out all WPP macros to no-ops
-#define WPP_CONTROL_GUIDS
-#define WPP_INIT_TRACING(...)   ((void)0)
-#define WPP_CLEANUP(...)        ((void)0)
-#define TraceEvents(...)        ((void)0)
-
-// No .tmh include needed — define the guard so #include "xxx.tmh" is skipped
-#define SYMBIOSE_WPP_STUBBED 1
-
-#else // Full WPP tracing (production WDK build)
-
-//
 // WPP Provider GUID and Trace Flags
 //
 // Each WPP_DEFINE_BIT defines a flag that can be individually enabled/disabled
@@ -82,6 +64,3 @@
 // FUNC TraceEvents(LEVEL, FLAGS, MSG, ...);
 // end_wpp
 //
-
-#endif // SYMBIOSE_NO_WPP
-
