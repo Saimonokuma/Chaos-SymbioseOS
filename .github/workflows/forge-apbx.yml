@@ -100,7 +100,8 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   # JOB 2: build-kmdf-driver (CI-002)
   # Compiles symbiose_bridge.sys (KMDF 1.33) + SymbioseNull.sys (WDM)
-  # NuGet WDK for headers/libs + runner tracewpp.exe for real WPP tracing
+  # Uses Microsoft's official NuGet WDK pattern (packages.config +
+  # Directory.Build.props) from github.com/microsoft/Windows-driver-samples
   # ═══════════════════════════════════════════════════════════════════════════
   build-kmdf-driver:
     name: "CI-002 - Build KMDF Driver + WDM Filter"
@@ -111,63 +112,16 @@ jobs:
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
-
-      - name: Install WDK headers and libs (NuGet)
-        run: |
-          nuget install Microsoft.Windows.WDK.x64 -Version 10.0.26100.1 -OutputDirectory D:\wdk-pkg
-          nuget install Microsoft.Windows.SDK.CPP.x64 -Version 10.0.26100.1 -OutputDirectory D:\wdk-pkg
-          nuget install Microsoft.Windows.SDK.CPP -Version 10.0.26100.1 -OutputDirectory D:\wdk-pkg
-          Write-Host "[OK] WDK NuGet packages installed"
-        shell: powershell
-
-      - name: Set WDK environment paths
-        run: |
-          $wdkBase = "D:\wdk-pkg\Microsoft.Windows.WDK.x64.10.0.26100.1\c"
-          $sdkBase = "D:\wdk-pkg\Microsoft.Windows.SDK.CPP.10.0.26100.1\c"
-          echo "WDK_INC_KM=$wdkBase\Include\10.0.26100.0\km" >> $env:GITHUB_ENV
-          echo "WDK_INC_KMDF=$wdkBase\Include\wdf\kmdf\1.33" >> $env:GITHUB_ENV
-          echo "WDK_INC_SHARED=$sdkBase\Include\10.0.26100.0\shared" >> $env:GITHUB_ENV
-          echo "WDK_LIB_KM=$wdkBase\lib\10.0.26100.0\km\x64" >> $env:GITHUB_ENV
-          $wppCfg = $wdkBase + "\Include\10.0.26100.0\shared\wppconfig\rev1"
-          echo "WPP_CONFIG=$wppCfg" >> $env:GITHUB_ENV
-          Write-Host "[OK] WDK env paths exported"
-        shell: powershell
-
-      - name: Run WPP preprocessor (tracewpp.exe)
-        run: |
-          $wpp = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\tracewpp.exe"
-          if (-not (Test-Path $wpp)) {
-            $found = Get-ChildItem "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "tracewpp.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($found) { $wpp = $found.FullName }
-            else { throw "tracewpp.exe not found on runner" }
-          }
-          $msg = "[OK] Using: " + $wpp
-          Write-Host $msg
-          $srcDir = "02_Symbiose_Bridge\src"
-          $cfgDir = $env:WPP_CONFIG
-          $sources = @("driver_entry.c", "symbiose_bridge.c", "vmx_hypervisor.c", "ioctl_handler.c", "acpi_handler.c")
-          foreach ($src in $sources) {
-            $srcPath = Join-Path $srcDir $src
-            & $wpp -cfgdir:$cfgDir -odir:$srcDir -km -scan:$srcDir\trace.h $srcPath
-            $tmh = $src -replace '\.c$', '.tmh'
-            $tmhPath = Join-Path $srcDir $tmh
-            if (Test-Path $tmhPath) {
-              $sz = (Get-Item $tmhPath).Length
-              Write-Host "[OK] $tmh generated ($sz bytes)"
-            } else {
-              Write-Host "[WARN] $tmh not generated - check trace.h config"
-            }
-          }
+      - name: Restore WDK NuGet packages
+        run: nuget restore 02_Symbiose_Bridge\packages.config -PackagesDirectory 02_Symbiose_Bridge\packages
         shell: powershell
 
       - name: Build symbiose_bridge.sys (KMDF)
-        run: |
-          msbuild 02_Symbiose_Bridge/symbiose_bridge.vcxproj /p:Configuration=Release /p:Platform=x64
+        run: msbuild 02_Symbiose_Bridge/symbiose_bridge.vcxproj /p:Configuration=Release /p:Platform=x64
         shell: powershell
 
       - name: Build SymbioseNull.sys (WDM filter)
-        run: |
-          msbuild 02_Symbiose_Bridge/SymbioseNull/SymbioseNull.vcxproj /p:Configuration=Release /p:Platform=x64
+        run: msbuild 02_Symbiose_Bridge/SymbioseNull/SymbioseNull.vcxproj /p:Configuration=Release /p:Platform=x64
         shell: powershell
 
       - name: Verify driver outputs

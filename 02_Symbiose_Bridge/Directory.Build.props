@@ -1,0 +1,18 @@
+<Project>
+  <!--
+    Directory.Build.props - WDK NuGet MSBuild Integration
+    
+    Following Microsoft's official Windows-driver-samples pattern:
+    https://github.com/microsoft/Windows-driver-samples/blob/main/Directory.Build.props
+    
+    This file auto-imports WDK MSBuild targets from NuGet packages,
+    providing the WindowsKernelModeDriver10.0 toolset, WPP tracing
+    (tracewpp.exe integration), and all kernel-mode headers/libs.
+    
+    NuGet packages are restored to: packages/ (relative to this file)
+    Ref: Interactive_Plan.md §II·1, §XX·7
+  -->
+  <Import Project="packages\Microsoft.Windows.WDK.x64.10.0.26100.1\build\native\Microsoft.Windows.WDK.x64.props" Condition="Exists('packages\Microsoft.Windows.WDK.x64.10.0.26100.1\build\native\Microsoft.Windows.WDK.x64.props') and '$(Platform)' == 'x64'"/>
+  <Import Project="packages\Microsoft.Windows.SDK.CPP.x64.10.0.26100.1\build\native\Microsoft.Windows.SDK.cpp.x64.props" Condition="Exists('packages\Microsoft.Windows.SDK.CPP.x64.10.0.26100.1\build\native\Microsoft.Windows.SDK.cpp.x64.props') and '$(Platform)' == 'x64'"/>
+  <Import Project="packages\Microsoft.Windows.SDK.CPP.10.0.26100.1\build\native\Microsoft.Windows.SDK.cpp.props" Condition="Exists('packages\Microsoft.Windows.SDK.CPP.10.0.26100.1\build\native\Microsoft.Windows.SDK.cpp.props')"/>
+</Project>
