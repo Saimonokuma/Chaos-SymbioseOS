@@ -13,8 +13,9 @@
     Ref: Interactive_Plan.md §II·1, §XX·7
   -->
   <!-- Test-signing configuration: SHA256 digest (required by modern signtool) -->
+  <!-- VS UI calls this "File Digest Algorithm" but the MSBuild property is SignToolDigestAlgorithm -->
   <PropertyGroup>
-    <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
+    <SignToolDigestAlgorithm>sha256</SignToolDigestAlgorithm>
   </PropertyGroup>
 
   <Import Project="packages\Microsoft.Windows.WDK.x64.10.0.26100.1\build\native\Microsoft.Windows.WDK.x64.props" Condition="Exists('packages\Microsoft.Windows.WDK.x64.10.0.26100.1\build\native\Microsoft.Windows.WDK.x64.props') and '$(Platform)' == 'x64'"/>
