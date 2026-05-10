@@ -77,10 +77,52 @@ int find_or_alloc_node(const char* nodeId)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// node_score / pick_best_node — Canonical implementations in node_score.c
+// node_score — Score a node for shard placement
+//
+// Reference: §VIII·2 lines 3444-3461
+// Returns 0-100+. Higher = better candidate.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/* Provided by node_score.c (HIVE-MOSIX-004) */
+float node_score(HIVE_NODE* node)
+{
+    if (!node || !node->Active) return 0.0f;
+
+    if (time(NULL) - node->LastHeartbeat > HEARTBEAT_TIMEOUT_S) {
+        node->Active = 0;
+        return 0.0f;
+    }
+
+    float vram_score    = node->VramFreeGb * 10.0f;
+    float thermal_score = (90.0f - node->GpuTempC) * 1.5f;
+    float queue_score   = 50.0f - (node->InferenceQueueDepth * 5.0f);
+
+    float total = vram_score + thermal_score + queue_score;
+    return (total < 0.0f) ? 0.0f : total;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// pick_best_node — Find optimal target for shard placement
+//
+// Reference: §VIII·2 lines 3463-3475
+// ═══════════════════════════════════════════════════════════════════════════
+
+HIVE_NODE* pick_best_node(float min_vram_gb)
+{
+    float best_score = -1.0f;
+    HIVE_NODE* best  = NULL;
+
+    for (int i = 0; i < MAX_NODES; i++) {
+        if (!g_NodeRegistry[i].Active) continue;
+        if (g_NodeRegistry[i].VramFreeGb < min_vram_gb) continue;
+
+        float s = node_score(&g_NodeRegistry[i]);
+        if (s > best_score) {
+            best_score = s;
+            best = &g_NodeRegistry[i];
+        }
+    }
+    return best;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // handle_cluster_announce — Process NODE_JOIN from #cluster-announce
