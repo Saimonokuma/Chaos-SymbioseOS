@@ -6,7 +6,7 @@
 #
 # Reference: Interactive_Plan.md §VII (IRC Neural Bus), HIVE-IRC-001
 # Depends: Executables populated by CI-002 (build-win32-binaries)
-# Option: net-irc-bus (Page 4 of playbook.conf)
+# Option: net-irc (Page 4 of playbook.conf)
 # ══════════════════════════════════════════════════════════════════════════
 title: Deploy IRC Neural Bus
 actions:

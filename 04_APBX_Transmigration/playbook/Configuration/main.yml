@@ -25,7 +25,7 @@ actions:
   # If 'ai-act-decline' was selected, this phase is skipped and the
   # playbook effectively does nothing.
   # ════════════════════════════════════════════════════════════════════════
-  - !status: {status: '⚖️ Sealing AI Act & Human Tutoring Consensus...'}
+  - !status: {status: 'Sealing AI Act and Human Tutoring Consensus'}
   - !task: {path: 'Tasks\ai_act_consensus.yml', option: 'ai-act-accept'}
 
   # ════════════════════════════════════════════════════════════════════════
@@ -33,46 +33,46 @@ actions:
   # Writes symbiose_config.json based on FeaturePage selections.
   # Routes to correct HuggingFace repo based on llm-* option.
   # ════════════════════════════════════════════════════════════════════════
-  - !status: {status: '🔧 Detecting hardware and writing configuration...'}
+  - !status: {status: 'Detecting hardware and writing configuration'}
   - !task: {path: 'Tasks\model_selector.yml'}
   - !task: {path: 'Tasks\phase0_config.yml'}
 
   # ════════════════════════════════════════════════════════════════════════
   # PHASE 1: SECURITY DISARMAMENT + TEST SIGNING
-  # VBS/HVCI destruction only runs if user checked 'hw-vbs-destroy'.
+  # VBS/HVCI destruction only runs if user checked 'hw-vbs'.
   # Test signing is ALWAYS enabled (no option: tag = unconditional).
   # ════════════════════════════════════════════════════════════════════════
-  - !status: {status: '💀 Destroying VBS/HVCI + enabling test signing...'}
-  - !task: {path: 'Tasks\vbs_destruction.yml', option: 'hw-vbs-destroy'}
+  - !status: {status: 'Destroying VBS/HVCI and enabling test signing'}
+  - !task: {path: 'Tasks\vbs_destruction.yml', option: 'hw-vbs'}
   - !task: {path: 'Tasks\enable_test_signing.yml'}
 
   # ════════════════════════════════════════════════════════════════════════
   # PHASE 2: HARDWARE AIRLOCK
   # DDA GPU passthrough + NVMe isolation. Only runs if selected.
   # ════════════════════════════════════════════════════════════════════════
-  - !status: {status: '🔒 DDA GPU passthrough + NVMe isolation...'}
-  - !task: {path: 'Tasks\hardware_airlock.yml', option: 'hw-gpu-passthrough'}
+  - !status: {status: 'DDA GPU passthrough and NVMe isolation'}
+  - !task: {path: 'Tasks\hardware_airlock.yml', option: 'hw-gpu'}
 
   # ════════════════════════════════════════════════════════════════════════
   # PHASE 3: DRIVER INSTALLATION
   # Installs symbiose_bridge.sys (Ring-0 hypervisor) and SymbioseNull.sys.
   # ════════════════════════════════════════════════════════════════════════
-  - !status: {status: '🔧 Installing symbiose_bridge.sys Ring-0 hypervisor...'}
+  - !status: {status: 'Installing symbiose_bridge.sys Ring-0 hypervisor'}
   - !task: {path: 'Tasks\driver_install.yml'}
 
   # ════════════════════════════════════════════════════════════════════════
   # PHASE 4a: IRC NEURAL BUS
-  # Only runs if 'net-irc-bus' was checked on Page 4.
+  # Only runs if 'net-irc' was checked on Page 4.
   # ════════════════════════════════════════════════════════════════════════
-  - !status: {status: '🌐 Deploying IRC Neural Bus daemon...'}
-  - !task: {path: 'Tasks\ircd_setup.yml', option: 'net-irc-bus'}
+  - !status: {status: 'Deploying IRC Neural Bus daemon'}
+  - !task: {path: 'Tasks\ircd_setup.yml', option: 'net-irc'}
 
   # ════════════════════════════════════════════════════════════════════════
   # PHASE 4b: LLM DOWNLOAD FROM HUGGINGFACE + DEPLOYMENT
   # Downloads F32 model weights from huggingface.co.
   # NOT bundled in the .apbx — fetched at install time.
   # ════════════════════════════════════════════════════════════════════════
-  - !status: {status: '🧠 Downloading F32 model from HuggingFace (this may take a while)...'}
+  - !status: {status: 'Downloading F32 model from HuggingFace'}
   - !task: {path: 'Tasks\llm_download_hf.yml'}
   - !task: {path: 'Tasks\llm_deploy.yml'}
 
@@ -80,14 +80,14 @@ actions:
   # PHASE 5: KERNEL & BOOT
   # Installs 64-bit SymbioseKernel + initramfs to NVMe tensor store.
   # ════════════════════════════════════════════════════════════════════════
-  - !status: {status: '🚀 Installing SymbioseKernel 64-bit + initramfs...'}
+  - !status: {status: 'Installing SymbioseKernel 64-bit and initramfs'}
   - !task: {path: 'Tasks\phase4_5.yml'}
 
   # ════════════════════════════════════════════════════════════════════════
   # PHASE 6: TERMINAL UI (optional)
   # Only runs if 'ui-terminal' was checked on Page 4.
   # ════════════════════════════════════════════════════════════════════════
-  - !status: {status: '🖥️ Installing SymbioseTerminal...'}
+  - !status: {status: 'Installing SymbioseTerminal'}
   - !task: {path: 'Tasks\terminal_install.yml', option: 'ui-terminal'}
 
-  - !status: {status: '✅ SymbioseOS deployed. The hive mind awakens on next reboot. The AI Act consensus is sealed forever.'}
+  - !status: {status: 'SymbioseOS deployed. The hive mind awakens on next reboot.'}

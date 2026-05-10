@@ -7,7 +7,7 @@
 # information about the Chaos OS guest.
 
 actions:
-  - !status: {status: '🔒 Disabling Windows telemetry...'}
+  - !status: {status: 'Disabling Windows telemetry'}
 
   # 1. Disable Connected User Experiences and Telemetry service
   - !cmd:

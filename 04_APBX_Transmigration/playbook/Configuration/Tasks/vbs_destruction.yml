@@ -12,7 +12,7 @@
 #   - Constraint X·19: VBS destruction requires FULL REBOOT before
 #     symbiose_bridge.sys install (VMXON raises #GP if VBS holds VMX root)
 #
-# Only runs if user checked 'hw-vbs-destroy' on HW FeaturePage (Page 3).
+# Only runs if user checked 'hw-vbs' on HW FeaturePage (Page 3).
 # ══════════════════════════════════════════════════════════════════════════
 
 title: Phase 1a — VBS/HVCI Destruction

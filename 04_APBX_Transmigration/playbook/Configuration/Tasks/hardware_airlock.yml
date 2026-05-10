@@ -11,7 +11,7 @@
 #   - Constraint X·18: MMIO formula = 2 × BAR1_GB × GPU_count × 1024
 #   - Constraint X·19: VBS must be destroyed BEFORE this phase (Phase 1)
 #
-# Only runs if user selected 'hw-gpu-passthrough' on HW FeaturePage.
+# Only runs if user selected 'hw-gpu' on HW FeaturePage.
 # ══════════════════════════════════════════════════════════════════════════
 
 title: Phase 2 — Hardware Airlock (DDA + NVMe Isolation)

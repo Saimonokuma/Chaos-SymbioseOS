@@ -1,47 +1,43 @@
-# ══════════════════════════════════════════════════════════════════════════
 # phase0_config.yml — Phase 0: Hardware Detection & Configuration
 #
 # Orchestrates: CONFIG-001 through CONFIG-009 (except CONFIG-010/007)
 # Runs detection scripts, launches WinForms configurator, writes config.
 #
 # Reference: Interactive_Plan.md §IX·2 (lines 4382-4387)
-# ══════════════════════════════════════════════════════════════════════════
 
-title: Phase 0 — Hardware Detection & Configuration
+title: Phase 0 — Hardware Detection
 actions:
 
-  # ── Step 1: Detect GPUs (CONFIG-001) ────────────────────────────────
-  - !status: {status: '🖥️ Enumerating GPUs...'}
+  # Step 1: Detect GPUs (CONFIG-001)
+  - !status: {status: 'Enumerating GPUs'}
   - !powerShell:
     command: |
       & "$PWD\Resources\Detect-GPU.ps1"
     wait: true
 
-  # ── Step 2: Detect Storage (CONFIG-002) ─────────────────────────────
-  - !status: {status: '💽 Enumerating storage devices...'}
+  # Step 2: Detect Storage (CONFIG-002)
+  - !status: {status: 'Enumerating storage devices'}
   - !powerShell:
     command: |
       & "$PWD\Resources\Detect-NVMe.ps1"
     wait: true
 
-  # ── Step 3: Detect System Resources (CONFIG-003/004/005) ────────────
-  - !status: {status: '💾 Detecting RAM, CPU, NUMA topology...'}
+  # Step 3: Detect System Resources (CONFIG-003/004/005)
+  - !status: {status: 'Detecting RAM, CPU, NUMA topology'}
   - !powerShell:
     command: |
       & "$PWD\Resources\Detect-System.ps1"
     wait: true
 
-  # ── Step 4: Launch WinForms Configurator (CONFIG-003-014) ───────────
-  # This opens the dark-themed GUI for precise hardware allocation,
-  # execution mode, multimodal senses, and Moviola sensitivity.
-  - !status: {status: '⚙️ Opening SymbioseOS Hardware Configurator...'}
+  # Step 4: Launch WinForms Configurator (CONFIG-003-014)
+  - !status: {status: 'Opening SymbioseOS Hardware Configurator'}
   - !powerShell:
     command: |
       & "$PWD\Resources\Symbiose-Configurator.ps1"
     wait: true
 
-  # ── Step 5: Assemble Final Config JSON (CONFIG-009) ─────────────────
-  - !status: {status: '📝 Writing symbiose_config.json...'}
+  # Step 5: Assemble Final Config JSON (CONFIG-009)
+  - !status: {status: 'Writing symbiose_config.json'}
   - !powerShell:
     command: |
       & "$PWD\Resources\Write-SymbioseConfig.ps1"

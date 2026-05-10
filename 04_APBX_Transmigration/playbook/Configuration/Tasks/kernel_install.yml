@@ -6,7 +6,7 @@
 # directory to the SymbioseOS installation path on the target drive.
 
 actions:
-  - !status: {status: '🚀 Installing SymbioseKernel 64-bit + initramfs...'}
+  - !status: {status: 'Installing SymbioseKernel 64-bit and initramfs'}
 
   # 1. Create SymbioseOS directory on target drive
   - !powerShell:
@@ -53,7 +53,7 @@ actions:
         $bz = Get-Item "$installPath\BZIMAGE" -ErrorAction SilentlyContinue
         $rd = Get-Item "$installPath\initrd.img" -ErrorAction SilentlyContinue
         if ($bz -and $rd) {
-          Write-Host "[KERNEL] ✓ BZIMAGE ($([math]::Round($bz.Length/1MB,1)) MB) + initrd.img ($([math]::Round($rd.Length/1KB,1)) KB) installed"
+          Write-Host "[KERNEL] BZIMAGE ($([math]::Round($bz.Length/1MB,1)) MB) + initrd.img ($([math]::Round($rd.Length/1KB,1)) KB) installed"
         } else {
           throw "Kernel installation verification failed"
         }

@@ -7,7 +7,7 @@
 # Constitutional constraint: F32 only, no quantization (X·5)
 #
 # Reference: Interactive_Plan.md §IX·2, CONFIG-007
-# Option routing: llm-devstral | llm-mistral-large | llm-mixtral-8x22b | llm-local
+# Option routing: llm-devstral | llm-mistral | llm-mixtral | llm-local
 # ══════════════════════════════════════════════════════════════════════════
 title: Download F32 Model from HuggingFace
 actions:

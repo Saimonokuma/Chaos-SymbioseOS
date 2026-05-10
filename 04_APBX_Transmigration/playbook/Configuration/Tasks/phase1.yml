@@ -6,7 +6,7 @@
 # for protected registry modifications that require SYSTEM-level access.
 
 actions:
-  - !status: {status: '🔐 Bootstrapping TrustedInstaller execution context...'}
+  - !status: {status: 'Bootstrapping TrustedInstaller execution context'}
 
   # 1. Create SymbioseOS scheduled task running as TrustedInstaller
   - !powerShell:
@@ -26,7 +26,7 @@ actions:
         $taskName = "SymbioseOS-Phase1-Bootstrap"
         $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
         if ($task) {
-          Write-Host "[PHASE1] ✓ TrustedInstaller bootstrap ready"
+          Write-Host "[PHASE1] TrustedInstaller bootstrap ready"
         } else {
           throw "TrustedInstaller bootstrap failed"
         }
