@@ -1,0 +1,116 @@
+# ══════════════════════════════════════════════════════════════════════════
+# resource_allocation.yml — Phase 0b: Apply Resource Allocation Profile
+#
+# Maps the user's selected resource tier (res-minimal, res-balanced,
+# res-performance, res-maximum) to concrete vCPU/RAM/GPU values and
+# writes them to symbiose_config.json for ChaosLoader consumption.
+#
+# Reference: playbook.conf Page 3b (Resource Allocation Profile)
+# ══════════════════════════════════════════════════════════════════════════
+
+title: Apply Resource Allocation Profile
+actions:
+
+  # ── Minimal: 4 vCPU / 16 GB RAM / 1 GPU ────────────────────────────
+  - !powerShell:
+    command: |
+      $configDir = Join-Path $env:ProgramData 'SymbioseOS'
+      if (-not (Test-Path $configDir)) {
+          New-Item -Path $configDir -ItemType Directory -Force | Out-Null
+      }
+      $configPath = Join-Path $configDir 'resource_profile.json'
+      $profile = @{
+          'tier'     = 'minimal'
+          'vcpus'    = 4
+          'ram_gb'   = 16
+          'gpu_count' = 1
+          'numa_pinned' = $false
+      }
+      $profile | ConvertTo-Json | Out-File $configPath -Encoding UTF8 -Force
+      Write-Host '[RES] Profile: Minimal (4 vCPU / 16 GB / 1 GPU)'
+    wait: true
+    option: res-minimal
+
+  # ── Balanced: 8 vCPU / 32 GB RAM / 1 GPU ───────────────────────────
+  - !powerShell:
+    command: |
+      $configDir = Join-Path $env:ProgramData 'SymbioseOS'
+      if (-not (Test-Path $configDir)) {
+          New-Item -Path $configDir -ItemType Directory -Force | Out-Null
+      }
+      $configPath = Join-Path $configDir 'resource_profile.json'
+      $profile = @{
+          'tier'     = 'balanced'
+          'vcpus'    = 8
+          'ram_gb'   = 32
+          'gpu_count' = 1
+          'numa_pinned' = $false
+      }
+      $profile | ConvertTo-Json | Out-File $configPath -Encoding UTF8 -Force
+      Write-Host '[RES] Profile: Balanced (8 vCPU / 32 GB / 1 GPU)'
+    wait: true
+    option: res-balanced
+
+  # ── Performance: 12 vCPU / 48 GB RAM / 2 GPU ───────────────────────
+  - !powerShell:
+    command: |
+      $configDir = Join-Path $env:ProgramData 'SymbioseOS'
+      if (-not (Test-Path $configDir)) {
+          New-Item -Path $configDir -ItemType Directory -Force | Out-Null
+      }
+      $configPath = Join-Path $configDir 'resource_profile.json'
+      $profile = @{
+          'tier'     = 'performance'
+          'vcpus'    = 12
+          'ram_gb'   = 48
+          'gpu_count' = 2
+          'numa_pinned' = $true
+      }
+      $profile | ConvertTo-Json | Out-File $configPath -Encoding UTF8 -Force
+      Write-Host '[RES] Profile: Performance (12 vCPU / 48 GB / 2 GPU)'
+    wait: true
+    option: res-performance
+
+  # ── Maximum: All vCPU / All RAM / All GPU ───────────────────────────
+  - !powerShell:
+    command: |
+      $configDir = Join-Path $env:ProgramData 'SymbioseOS'
+      if (-not (Test-Path $configDir)) {
+          New-Item -Path $configDir -ItemType Directory -Force | Out-Null
+      }
+      $configPath = Join-Path $configDir 'resource_profile.json'
+      $cpuCount = (Get-CimInstance Win32_Processor | Measure-Object -Property NumberOfLogicalProcessors -Sum).Sum
+      $ramGb = [math]::Floor((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
+      $gpuCount = (Get-CimInstance Win32_VideoController | Where-Object { $_.AdapterRAM -gt 0 }).Count
+      if ($gpuCount -lt 1) { $gpuCount = 1 }
+      $profile = @{
+          'tier'     = 'maximum'
+          'vcpus'    = $cpuCount
+          'ram_gb'   = $ramGb
+          'gpu_count' = $gpuCount
+          'numa_pinned' = $true
+      }
+      $profile | ConvertTo-Json | Out-File $configPath -Encoding UTF8 -Force
+      Write-Host ('[RES] Profile: Maximum (' + $cpuCount + ' vCPU / ' + $ramGb + ' GB / ' + $gpuCount + ' GPU)')
+    wait: true
+    option: res-maximum
+
+  # ── Store profile in registry for ChaosLoader ──────────────────────
+  - !powerShell:
+    command: |
+      $configPath = Join-Path $env:ProgramData 'SymbioseOS\resource_profile.json'
+      if (Test-Path $configPath) {
+          $p = Get-Content $configPath -Raw | ConvertFrom-Json
+          $regPath = 'HKLM:\SOFTWARE\SymbioseOS\Resources'
+          if (-not (Test-Path $regPath)) {
+              New-Item -Path $regPath -Force | Out-Null
+          }
+          Set-ItemProperty -Path $regPath -Name 'Tier' -Value $p.tier -Type String
+          Set-ItemProperty -Path $regPath -Name 'vCPUs' -Value $p.vcpus -Type DWord
+          Set-ItemProperty -Path $regPath -Name 'RAM_GB' -Value $p.ram_gb -Type DWord
+          Set-ItemProperty -Path $regPath -Name 'GPU_Count' -Value $p.gpu_count -Type DWord
+          Write-Host ('[RES] Registry written: ' + $p.tier + ' (' + $p.vcpus + ' vCPU / ' + $p.ram_gb + ' GB / ' + $p.gpu_count + ' GPU)')
+      } else {
+          Write-Host '[RES] No profile selected - using defaults'
+      }
+    wait: true
