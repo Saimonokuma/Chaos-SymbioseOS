@@ -26,6 +26,28 @@ actions:
       command: 'mkdir "%ProgramData%\SymbioseOS\config" 2>nul'
       weight: 5
 
+  # ── Step 1b: Deploy ChaosLoader.exe ─────────────────────────────────
+  # ChaosLoader is the VMX launcher — must be in ProgramData for the
+  # scheduled task to find it at boot.
+  - !powerShell:
+      command: |
+        $dest = Join-Path $env:ProgramData 'SymbioseOS\ChaosLoader.exe'
+        Copy-Item 'Executables\ChaosLoader.exe' $dest -Force
+        Write-Host ('[PHASE-5] ChaosLoader.exe deployed: ' + $dest)
+      weight: 20
+      exeDir: true
+
+  # ── Step 1c: Deploy hive_mind binary ────────────────────────────────
+  # hive_mind is the init process inside the Linux guest (init=/sbin/hive_mind)
+  # Stored alongside the kernel for initramfs injection.
+  - !powerShell:
+      command: |
+        $dest = Join-Path $env:ProgramData 'SymbioseOS\Kernel\hive_mind'
+        Copy-Item 'Executables\hive_mind' $dest -Force
+        Write-Host ('[PHASE-5] hive_mind deployed: ' + $dest)
+      weight: 15
+      exeDir: true
+
   # ── Step 2: Copy kernel image from APBX package ────────────────────
   - !powerShell:
       command: |
