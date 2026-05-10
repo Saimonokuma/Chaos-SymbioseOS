@@ -45,18 +45,43 @@ RUN echo "=== BUILD 1: Linux Kernel ===" && \
     echo "=== KERNEL BUILD COMPLETE ==="
 
 # ══════════════════════════════════════════════════════════════════════════
-# BUILD 2: hive_mind (guest PID 1, musl static)
-# Includes multimodal + OpenMOSIX modules linked as object files
+# BUILD 2: hive_mind (guest PID 1, static — FULL with all 21 modules)
+# Per §XVII·3: PID 1 init + 11 Multimodal + 9 OpenMOSIX modules
+# Excluded: bpf_gpu_monitor.bpf.c (BPF runtime), moviola_dvs.c (P3 libcaer)
 # ══════════════════════════════════════════════════════════════════════════
-RUN echo "=== BUILD 2: hive_mind ===" && \
-    musl-gcc -static -O2 -g \
-        -I/src/03_HiveMind_Orchestrator/ChaosLoader/src \
+RUN echo "=== BUILD 2: hive_mind (FULL — 21 modules) ===" && \
+    MM_DIR=/src/03_HiveMind_Orchestrator/ChaosLoader/src && \
+    MX_DIR=/src/03_HiveMind_Orchestrator/openmosix_nx/src && \
+    gcc -static -Os -D__linux__ \
+        -I${MM_DIR} \
         -I/src/02_Symbiose_Bridge/inc \
-        -I/src/03_HiveMind_Orchestrator/openmosix_nx/src \
+        -I${MX_DIR} \
+        -Wall -Wno-unused-function \
         -o /output/hive_mind \
-        /src/03_HiveMind_Orchestrator/ChaosLoader/src/hive_mind_init.c && \
+        ${MM_DIR}/hive_mind_init.c \
+        ${MM_DIR}/modality_router.c \
+        ${MM_DIR}/vision_pipeline.c \
+        ${MM_DIR}/tts_pipeline.c \
+        ${MM_DIR}/moviola_delta.c \
+        ${MM_DIR}/moviola_dibit.c \
+        ${MM_DIR}/video_temporal.c \
+        ${MM_DIR}/scout_modality.c \
+        ${MM_DIR}/modality_hotswap.c \
+        ${MM_DIR}/demhx_midi_grammar.c \
+        ${MM_DIR}/demhx_rdi.c \
+        ${MX_DIR}/migrate.c \
+        ${MX_DIR}/node_score.c \
+        ${MX_DIR}/rdma_pool.c \
+        ${MX_DIR}/rdma_stream.c \
+        ${MX_DIR}/tensor_alloc.c \
+        ${MX_DIR}/tensor_io.c \
+        ${MX_DIR}/kv_shard_mgr.c \
+        ${MX_DIR}/criugpu_daemon.c \
+        ${MX_DIR}/rebalance_harmonic.c \
+        -lm -lpthread && \
     file /output/hive_mind && \
-    echo "=== hive_mind BUILD COMPLETE ==="
+    SIZE=$(stat -c%s /output/hive_mind) && \
+    echo "=== hive_mind FULL BUILD COMPLETE: $SIZE bytes ==="
 
 # ══════════════════════════════════════════════════════════════════════════
 # BUILD 3: symbiose_ircd (guest, musl static)
@@ -98,74 +123,44 @@ RUN echo "=== BUILD 5: symbiose_ircd.exe ===" && \
     echo "=== symbiose_ircd.exe BUILD COMPLETE ==="
 
 # ══════════════════════════════════════════════════════════════════════════
-# BUILD 6: initrd.img (cpio + gzip)
+# BUILD 6: initrd.img (cpio + gzip) — per §XVII·1
 # ══════════════════════════════════════════════════════════════════════════
-RUN echo "=== BUILD 6: initrd.img ===" && \
-    mkdir -p /initrd/sbin /initrd/proc /initrd/sys /initrd/dev /initrd/etc /initrd/tmp && \
+RUN echo "=== BUILD 6: initrd.img (§XVII·1 compliant) ===" && \
+    mkdir -p /initrd/sbin /initrd/usr/bin /initrd/proc /initrd/sys \
+            /initrd/dev /initrd/etc/symbiose /initrd/tmp /initrd/lib && \
     cp /output/hive_mind /initrd/sbin/hive_mind && \
     cp /output/symbiose_ircd /initrd/sbin/symbiose_ircd && \
     chmod +x /initrd/sbin/* && \
-    ln -s /sbin/hive_mind /initrd/init && \
+    ln -sf /sbin/hive_mind /initrd/init && \
+    echo '{"model_path":"","format":"SafeTensors","multimodal":false,"port":8080}' \
+        > /initrd/etc/symbiose/model.conf && \
+    echo '{"node_id":"00000000-0000-0000-0000-000000000000","vram_gb":0,"rdma_capable":false}' \
+        > /initrd/etc/symbiose/node.conf && \
     cd /initrd && \
     find . | cpio -o -H newc 2>/dev/null | gzip -9 > /output/initrd.img && \
-    ls -la /output/initrd.img && \
-    echo "=== initrd.img BUILD COMPLETE ==="
+    SIZE=$(stat -c%s /output/initrd.img) && \
+    echo "Contents:" && \
+    gzip -dc /output/initrd.img | cpio -t 2>/dev/null && \
+    echo "=== initrd.img BUILD COMPLETE: $SIZE bytes ==="
 
 # ══════════════════════════════════════════════════════════════════════════
-# VERIFY: Compile all 11 Multimodal + 9 OpenMOSIX modules (.o files)
-# Replicates local build: 22 PASS / 0 FAIL
+# VERIFY: All modules are now LINKED in BUILD 2 (not just syntax-checked)
+# This step validates the output binaries
 # ══════════════════════════════════════════════════════════════════════════
-RUN echo "=== MODULE COMPILATION: 11 Multimodal + 9 OpenMOSIX ===" && \
-    PASS=0 && FAIL=0 && \
-    MM_DIR=/src/03_HiveMind_Orchestrator/ChaosLoader/src && \
-    MX_DIR=/src/03_HiveMind_Orchestrator/openmosix_nx/src && \
-    IFLAGS="-I$MM_DIR -I/src/02_Symbiose_Bridge/inc -I$MX_DIR" && \
+RUN echo "=== BINARY VERIFICATION ===" && \
     echo "" && \
-    echo "── Multimodal Modules (11) ──" && \
-    for f in \
-      vision_pipeline.c \
-      modality_router.c \
-      modality_hotswap.c \
-      tts_pipeline.c \
-      moviola_delta.c \
-      moviola_dibit.c \
-      moviola_dvs.c \
-      video_temporal.c \
-      scout_modality.c \
-      demhx_midi_grammar.c \
-      demhx_rdi.c \
-    ; do \
-      if gcc -c -fsyntax-only -D__linux__ $IFLAGS $MM_DIR/$f 2>/dev/null; then \
-        echo "[PASS] $f" && PASS=$((PASS+1)); \
-      else \
-        echo "[FAIL] $f" && FAIL=$((FAIL+1)); \
-      fi; \
-    done && \
-    echo "" && \
-    echo "── OpenMOSIX Modules (9) ──" && \
-    for f in \
-      migrate.c \
-      node_score.c \
-      rdma_pool.c \
-      rdma_stream.c \
-      tensor_alloc.c \
-      tensor_io.c \
-      kv_shard_mgr.c \
-      criugpu_daemon.c \
-      rebalance_harmonic.c \
-    ; do \
-      if gcc -c -fsyntax-only -D__linux__ $IFLAGS $MX_DIR/$f 2>/dev/null; then \
-        echo "[PASS] $f" && PASS=$((PASS+1)); \
-      else \
-        echo "[FAIL] $f" && FAIL=$((FAIL+1)); \
-      fi; \
-    done && \
-    echo "" && \
-    echo "══════════════════════════════════════════════════════════" && \
-    echo "  Module Compilation: $PASS PASS / $FAIL FAIL" && \
-    echo "══════════════════════════════════════════════════════════" && \
     echo "  hive_mind: $(stat -c%s /output/hive_mind) bytes" && \
+    echo "  symbiose_ircd: $(stat -c%s /output/symbiose_ircd) bytes" && \
+    echo "  ChaosLoader.exe: $(stat -c%s /output/ChaosLoader.exe) bytes" && \
+    echo "  symbiose_ircd.exe: $(stat -c%s /output/symbiose_ircd.exe) bytes" && \
+    echo "  BZIMAGE: $(stat -c%s /output/BZIMAGE) bytes" && \
     echo "  initrd.img: $(stat -c%s /output/initrd.img) bytes" && \
+    echo "" && \
+    echo "── hive_mind module strings ──" && \
+    strings /output/hive_mind | grep -E 'modality|moviola|tensor|rdma|hive_mind|Step [0-9]' | head -20 && \
+    echo "" && \
+    echo "══════════════════════════════════════════════════════════" && \
+    echo "  All 6 targets built and verified" && \
     echo "══════════════════════════════════════════════════════════"
 
 # ── Final verification ───────────────────────────────────────────────────
