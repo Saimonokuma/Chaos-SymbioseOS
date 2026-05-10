@@ -73,7 +73,7 @@ static model_config_t g_model_cfg;
 
 /* ── Forward declarations ─────────────────────────────────────────────── */
 static int  irc_connect(const char *host, int port);
-static void irc_send(int fd, const char *msg);
+static void irc_send_raw(int fd, const char *msg);
 static void irc_join_channels(int fd);
 static void parse_model_conf(model_config_t *cfg);
 static void death_rattle(int sig);
@@ -197,11 +197,11 @@ int main(void)
 
     if (irc_fd >= 0) {
         printf("[hive_mind] IRC connected on fd %d\n", irc_fd);
-        irc_send(irc_fd, "NICK hive_mind\r\n");
-        irc_send(irc_fd, "USER hive_mind 0 * :Hive Mind PID 1\r\n");
+        irc_send_raw(irc_fd, "NICK hive_mind\r\n");
+        irc_send_raw(irc_fd, "USER hive_mind 0 * :Hive Mind PID 1\r\n");
         usleep(100000);
         irc_join_channels(irc_fd);
-        irc_send(irc_fd, "PRIVMSG #cluster-announce :HIVE_ONLINE node=hive_mind params=0\r\n");
+        irc_send_raw(irc_fd, "PRIVMSG #cluster-announce :HIVE_ONLINE node=hive_mind params=0\r\n");
         printf("[hive_mind] HIVE_ONLINE announced.\n");
     } else {
         printf("[hive_mind] WARNING: Could not connect to IRC after 10 retries.\n");
@@ -234,7 +234,7 @@ int main(void)
                     /* Handle PING to keep connection alive */
                     if (strncmp(buf, "PING", 4) == 0) {
                         buf[1] = 'O';  /* PING → PONG */
-                        irc_send(irc_fd, buf);
+                        irc_send_raw(irc_fd, buf);
                     }
                     /* Route IRC messages to modules here */
                 } else if (n == 0) {
@@ -324,8 +324,8 @@ static int irc_connect(const char *host, int port)
     return fd;
 }
 
-/* IRC send helper */
-static void irc_send(int fd, const char *msg)
+/* IRC send helper (local, renamed to avoid conflict with shared irc_send in glue) */
+static void irc_send_raw(int fd, const char *msg)
 {
     if (fd >= 0 && msg) {
         write(fd, msg, strlen(msg));
@@ -338,7 +338,7 @@ static void irc_join_channels(int fd)
     for (int i = 0; IRC_CHANNELS[i] != NULL; i++) {
         char cmd[128];
         snprintf(cmd, sizeof(cmd), "JOIN %s\r\n", IRC_CHANNELS[i]);
-        irc_send(fd, cmd);
+        irc_send_raw(fd, cmd);
     }
 }
 
