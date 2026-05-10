@@ -27,146 +27,112 @@ actions:
       weight: 5
 
   # ── Step 2: Copy kernel image from APBX package ────────────────────
-  - !file:
-      source: 'Executables\Kernel\BZIMAGE'
-      destination: '%ProgramData%\SymbioseOS\Kernel\BZIMAGE'
+  - !powerShell:
+      command: |
+        $dest = Join-Path $env:ProgramData 'SymbioseOS\Kernel\BZIMAGE'
+        Copy-Item 'Executables\Kernel\BZIMAGE' $dest -Force
+        Write-Host '[PHASE-5] BZIMAGE copied'
       weight: 30
+      exeDir: true
 
   # ── Step 3: Copy initramfs from APBX package ───────────────────────
-  - !file:
-      source: 'Executables\Kernel\initrd.img'
-      destination: '%ProgramData%\SymbioseOS\Kernel\initrd.img'
+  - !powerShell:
+      command: |
+        $dest = Join-Path $env:ProgramData 'SymbioseOS\Kernel\initrd.img'
+        Copy-Item 'Executables\Kernel\initrd.img' $dest -Force
+        Write-Host '[PHASE-5] initrd.img copied'
       weight: 30
+      exeDir: true
 
   # ── Step 4: Generate ChaosLoader launch config from symbiose_config ─
-  # Reads symbiose_config.json (Phase 0 output) and generates
-  # kernel_boot.json with exact launch arguments for ChaosLoader.exe.
   - !powerShell:
     command: |
-      $configPath = "$env:ProgramData\SymbioseOS\symbiose_config.json"
-
+      $configPath = Join-Path $env:ProgramData 'SymbioseOS\symbiose_config.json'
       if (-not (Test-Path $configPath)) {
-          Write-Error "[PHASE-5] FATAL: symbiose_config.json not found!"
-          Write-Error "[PHASE-5] Phase 0 must complete first."
+          Write-Error '[PHASE-5] FATAL: symbiose_config.json not found!'
           exit 1
       }
-
       $config = Get-Content $configPath -Raw | ConvertFrom-Json
-
-      # ── Build ChaosLoader boot config ───────────────────────────
+      $kernelDir = Join-Path $env:ProgramData 'SymbioseOS\Kernel'
       $bootConfig = @{
-          kernel_path    = "$env:ProgramData\SymbioseOS\Kernel\BZIMAGE"
-          initrd_path    = "$env:ProgramData\SymbioseOS\Kernel\initrd.img"
-          kernel_cmdline = "console=ttyS0,115200n8 init=/sbin/hive_mind symbiose.mode=autonomous symbiose.precision=f32 quiet"
-
-          # From CONFIG-003 (RAM slider)
-          ram_mb         = $config.hardware.ram_allocation_gb * 1024
-
-          # From CONFIG-004 (vCPU slider)
-          vcpus          = $config.hardware.vcpu_count
-
-          # From CONFIG-005 (NUMA toggle)
-          numa_pinned    = $config.hardware.numa_pinned
-          numa_node      = $config.hardware.numa_node
-
-          # From CONFIG-006 (execution mode)
-          mode           = $config.execution.mode
-
-          # From CONFIG-008 (MMIO auto-calc)
-          high_mmio_mb   = $config.hardware.high_mmio_mb
-
-          # GPU passthrough paths (for EPT mapping)
-          gpu_paths      = @($config.hardware.gpu | Where-Object { $_.surrendered } |
-                            ForEach-Object { $_.pci_location })
-
-          # NVMe CCD paths (for SymbioseNull)
-          ccd_paths      = @($config.hardware.nvme | Where-Object { $_.is_ccd } |
-                            ForEach-Object { $_.pci_location })
+          'kernel_path'    = (Join-Path $kernelDir 'BZIMAGE')
+          'initrd_path'    = (Join-Path $kernelDir 'initrd.img')
+          'kernel_cmdline' = 'console=ttyS0,115200n8 init=/sbin/hive_mind symbiose.mode=autonomous symbiose.precision=f32 quiet'
+          'ram_mb'         = $config.hardware.ram_allocation_gb * 1024
+          'vcpus'          = $config.hardware.vcpu_count
+          'numa_pinned'    = $config.hardware.numa_pinned
+          'numa_node'      = $config.hardware.numa_node
+          'mode'           = $config.execution.mode
+          'high_mmio_mb'   = $config.hardware.high_mmio_mb
+          'gpu_paths'      = @($config.hardware.gpu | Where-Object { $_.surrendered } | ForEach-Object { $_.pci_location })
+          'ccd_paths'      = @($config.hardware.nvme | Where-Object { $_.is_ccd } | ForEach-Object { $_.pci_location })
       }
-
-      # ── Write kernel_boot.json ──────────────────────────────────
-      $outPath = "$env:ProgramData\SymbioseOS\config\kernel_boot.json"
+      $outPath = Join-Path $env:ProgramData 'SymbioseOS\config\kernel_boot.json'
       $bootConfig | ConvertTo-Json -Depth 3 | Out-File -FilePath $outPath -Encoding UTF8 -Force
-
-      Write-Host "[PHASE-5] ═══════════════════════════════════════════" -ForegroundColor Cyan
-      Write-Host "[PHASE-5] ChaosLoader launch config written" -ForegroundColor Green
-      Write-Host "[PHASE-5]   Path: $outPath" -ForegroundColor Green
-      Write-Host "[PHASE-5]   RAM: $($bootConfig.ram_mb) MB" -ForegroundColor Green
-      Write-Host "[PHASE-5]   vCPU: $($bootConfig.vcpus)" -ForegroundColor Green
-      Write-Host "[PHASE-5]   NUMA: $(if ($bootConfig.numa_pinned) { "node $($bootConfig.numa_node)" } else { "disabled" })" -ForegroundColor Green
-      Write-Host "[PHASE-5]   Mode: $($bootConfig.mode)" -ForegroundColor Green
-      Write-Host "[PHASE-5]   MMIO: $($bootConfig.high_mmio_mb) MB" -ForegroundColor Green
-      Write-Host "[PHASE-5]   GPUs: $($bootConfig.gpu_paths.Count)" -ForegroundColor Green
-      Write-Host "[PHASE-5]   CCDs: $($bootConfig.ccd_paths.Count)" -ForegroundColor Green
-      Write-Host "[PHASE-5] ═══════════════════════════════════════════" -ForegroundColor Cyan
+      Write-Host '[PHASE-5] =====================================================' -ForegroundColor Cyan
+      Write-Host '[PHASE-5] ChaosLoader launch config written' -ForegroundColor Green
+      Write-Host ('[PHASE-5]   Path: ' + $outPath) -ForegroundColor Green
+      Write-Host ('[PHASE-5]   RAM: ' + $bootConfig['ram_mb'] + ' MB') -ForegroundColor Green
+      Write-Host ('[PHASE-5]   vCPU: ' + $bootConfig['vcpus']) -ForegroundColor Green
+      Write-Host ('[PHASE-5]   Mode: ' + $bootConfig['mode']) -ForegroundColor Green
+      Write-Host ('[PHASE-5]   MMIO: ' + $bootConfig['high_mmio_mb'] + ' MB') -ForegroundColor Green
+      Write-Host ('[PHASE-5]   GPUs: ' + $bootConfig['gpu_paths'].Count) -ForegroundColor Green
+      Write-Host ('[PHASE-5]   CCDs: ' + $bootConfig['ccd_paths'].Count) -ForegroundColor Green
+      Write-Host '[PHASE-5] =====================================================' -ForegroundColor Cyan
     wait: true
     weight: 20
 
   # ── Step 5: Create ChaosLoader auto-start scheduled task ────────────
-  # ChaosLoader.exe runs at boot as SYSTEM to launch the VMX guest.
   - !powerShell:
     command: |
-      $exePath = "$env:ProgramData\SymbioseOS\ChaosLoader.exe"
-      $configArg = "--config `"$env:ProgramData\SymbioseOS\config\kernel_boot.json`""
-
-      $taskName = "SymbioseOS-ChaosLoader"
-
-      # Remove existing task if present
+      $exePath = Join-Path $env:ProgramData 'SymbioseOS\ChaosLoader.exe'
+      $bootJson = Join-Path $env:ProgramData 'SymbioseOS\config\kernel_boot.json'
+      $configArg = '--config ' + $bootJson
+      $taskName = 'SymbioseOS-ChaosLoader'
       Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-
-      # Create scheduled task to run at boot as SYSTEM
-      $action  = New-ScheduledTaskAction -Execute $exePath -Argument $configArg
+      $action = New-ScheduledTaskAction -Execute $exePath -Argument $configArg
       $trigger = New-ScheduledTaskTrigger -AtStartup
-      $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
-      $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
-                  -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero)
-
-      Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger `
-          -Principal $principal -Settings $settings -Force | Out-Null
-
-      Write-Host "[PHASE-5] ✓ ChaosLoader scheduled task created: $taskName" -ForegroundColor Green
-      Write-Host "[PHASE-5]   Runs at boot as SYSTEM" -ForegroundColor Green
-      Write-Host "[PHASE-5]   Exe: $exePath" -ForegroundColor DarkGray
-      Write-Host "[PHASE-5]   Args: $configArg" -ForegroundColor DarkGray
+      $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+      $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero)
+      Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+      Write-Host ('[PHASE-5] ChaosLoader scheduled task created: ' + $taskName) -ForegroundColor Green
+      Write-Host '[PHASE-5]   Runs at boot as SYSTEM' -ForegroundColor Green
+      Write-Host ('[PHASE-5]   Exe: ' + $exePath) -ForegroundColor DarkGray
+      Write-Host ('[PHASE-5]   Args: ' + $configArg) -ForegroundColor DarkGray
     wait: true
 
   # ── Step 6: Final verification ──────────────────────────────────────
   - !powerShell:
     command: |
-      $kernelPath = "$env:ProgramData\SymbioseOS\Kernel\BZIMAGE"
-      $initrdPath = "$env:ProgramData\SymbioseOS\Kernel\initrd.img"
-      $bootJson   = "$env:ProgramData\SymbioseOS\config\kernel_boot.json"
-
+      $kernelPath = Join-Path $env:ProgramData 'SymbioseOS\Kernel\BZIMAGE'
+      $initrdPath = Join-Path $env:ProgramData 'SymbioseOS\Kernel\initrd.img'
+      $bootJson = Join-Path $env:ProgramData 'SymbioseOS\config\kernel_boot.json'
       $allOk = $true
-
       if (Test-Path $kernelPath) {
           $sz = [math]::Round((Get-Item $kernelPath).Length / 1MB, 1)
-          Write-Host "[PHASE-5] ✓ BZIMAGE: $sz MB" -ForegroundColor Green
+          Write-Host ('[PHASE-5] BZIMAGE: ' + $sz + ' MB') -ForegroundColor Green
       } else {
-          Write-Error "[PHASE-5] ✗ BZIMAGE missing!"
+          Write-Error '[PHASE-5] BZIMAGE missing!'
           $allOk = $false
       }
-
       if (Test-Path $initrdPath) {
           $sz = [math]::Round((Get-Item $initrdPath).Length / 1MB, 1)
-          Write-Host "[PHASE-5] ✓ initrd.img: $sz MB" -ForegroundColor Green
+          Write-Host ('[PHASE-5] initrd.img: ' + $sz + ' MB') -ForegroundColor Green
       } else {
-          Write-Error "[PHASE-5] ✗ initrd.img missing!"
+          Write-Error '[PHASE-5] initrd.img missing!'
           $allOk = $false
       }
-
       if (Test-Path $bootJson) {
-          Write-Host "[PHASE-5] ✓ kernel_boot.json exists" -ForegroundColor Green
+          Write-Host '[PHASE-5] kernel_boot.json exists' -ForegroundColor Green
       } else {
-          Write-Error "[PHASE-5] ✗ kernel_boot.json missing!"
+          Write-Error '[PHASE-5] kernel_boot.json missing!'
           $allOk = $false
       }
-
       if ($allOk) {
-          Write-Host ""
-          Write-Host "[PHASE-5] ═══════════════════════════════════════════" -ForegroundColor Green
-          Write-Host "[PHASE-5] KERNEL DEPLOYMENT COMPLETE" -ForegroundColor Green
-          Write-Host "[PHASE-5] ChaosLoader will launch the hive on reboot." -ForegroundColor Green
-          Write-Host "[PHASE-5] ═══════════════════════════════════════════" -ForegroundColor Green
+          Write-Host ''
+          Write-Host '[PHASE-5] =====================================================' -ForegroundColor Green
+          Write-Host '[PHASE-5] KERNEL DEPLOYMENT COMPLETE' -ForegroundColor Green
+          Write-Host '[PHASE-5] ChaosLoader will launch the hive on reboot.' -ForegroundColor Green
+          Write-Host '[PHASE-5] =====================================================' -ForegroundColor Green
       }
     wait: true

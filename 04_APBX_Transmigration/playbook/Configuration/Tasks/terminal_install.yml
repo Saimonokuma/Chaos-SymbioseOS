@@ -21,16 +21,16 @@ actions:
       weight: 20
 
   # Create Start Menu shortcut
-  - !cmd:
-      command: >
-        powershell -Command "& {
-          $shell = New-Object -ComObject WScript.Shell;
-          $shortcut = $shell.CreateShortcut(\"$env:ProgramData\Microsoft\Windows\Start Menu\Programs\SymbioseTerminal.lnk\");
-          $shortcut.TargetPath = \"$env:ProgramFiles\SymbioseOS\Terminal\SymbioseTerminal.exe\";
-          $shortcut.Description = 'SymbioseOS Multimodal AI Terminal';
-          $shortcut.WorkingDirectory = \"$env:ProgramFiles\SymbioseOS\Terminal\";
-          $shortcut.Save();
-        }"
+  - !powerShell:
+      command: |
+        $shell = New-Object -ComObject WScript.Shell
+        $lnkPath = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\SymbioseTerminal.lnk'
+        $shortcut = $shell.CreateShortcut($lnkPath)
+        $shortcut.TargetPath = Join-Path $env:ProgramFiles 'SymbioseOS\Terminal\SymbioseTerminal.exe'
+        $shortcut.Description = 'SymbioseOS Multimodal AI Terminal'
+        $shortcut.WorkingDirectory = Join-Path $env:ProgramFiles 'SymbioseOS\Terminal'
+        $shortcut.Save()
+        Write-Host '[TERMINAL] Start Menu shortcut created'
       weight: 10
 
   # Register Terminal in system registry

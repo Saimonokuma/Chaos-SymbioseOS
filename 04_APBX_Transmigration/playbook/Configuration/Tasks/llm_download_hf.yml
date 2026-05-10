@@ -16,35 +16,44 @@ actions:
       command: 'mkdir "%ProgramFiles%\SymbioseOS\Models" 2>NUL'
       weight: 5
 
-  # Read selected model from symbiose_config.json and download
-  # Uses curl (built into Windows 10/11) for HuggingFace API
-  # The model_selector.yml already wrote the HF repo ID to config
-  - !cmd:
-      command: >
-        for /f "tokens=*" %%a in ('powershell -Command
-        "(Get-Content 'config\symbiose_config.json' | ConvertFrom-Json).llm.hf_repo_id"')
-        do (
-          echo Downloading model from HuggingFace: %%a
-          powershell -Command "& {
-            $repoId = '%%a';
-            $outDir = \"$env:ProgramFiles\SymbioseOS\Models\";
-            if ($repoId -eq 'local') {
-              Write-Host 'Local model selected — skipping download.';
-              exit 0;
-            }
-            $apiUrl = \"https://huggingface.co/api/models/$repoId\";
-            $modelInfo = Invoke-RestMethod -Uri $apiUrl;
-            $safetensorFiles = $modelInfo.siblings | Where-Object { $_.rfilename -match '\.safetensors$' };
-            foreach ($f in $safetensorFiles) {
-              $url = \"https://huggingface.co/$repoId/resolve/main/$($f.rfilename)\";
-              $dest = Join-Path $outDir $f.rfilename;
-              Write-Host \"Downloading: $($f.rfilename)\";
-              Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing;
-            }
-            Write-Host 'Download complete.';
-          }"
-        )
-      weight: 500
+  # Read selected model and download using native !powerShell action
+  - !powerShell:
+    command: |
+      $configPath = Join-Path $env:ProgramData 'SymbioseOS\symbiose_config.json'
+      if (-not (Test-Path $configPath)) {
+          Write-Host '[LLM-DL] No config found - skipping download'
+          exit 0
+      }
+      $config = Get-Content $configPath -Raw | ConvertFrom-Json
+      $repoId = $config.llm.hf_repo_id
+      if ($repoId -eq 'local' -or $repoId -eq 'LOCAL') {
+          Write-Host '[LLM-DL] Local model selected - skipping download.'
+          exit 0
+      }
+      $outDir = Join-Path $env:ProgramFiles 'SymbioseOS\Models'
+      if (-not (Test-Path $outDir)) {
+          New-Item -Path $outDir -ItemType Directory -Force | Out-Null
+      }
+      Write-Host ('[LLM-DL] Downloading from HuggingFace: ' + $repoId)
+      $apiUrl = 'https://huggingface.co/api/models/' + $repoId
+      try {
+          $modelInfo = Invoke-RestMethod -Uri $apiUrl
+          $stFiles = $modelInfo.siblings | Where-Object { $_.rfilename -match '\.safetensors$' }
+          foreach ($f in $stFiles) {
+              $url = 'https://huggingface.co/' + $repoId + '/resolve/main/' + $f.rfilename
+              $dest = Join-Path $outDir $f.rfilename
+              Write-Host ('[LLM-DL] Downloading: ' + $f.rfilename)
+              Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
+          }
+          Write-Host '[LLM-DL] Download complete.'
+      } catch {
+          Write-Error ('[LLM-DL] Download failed: ' + $_)
+          Write-Host '[LLM-DL] Model may require HuggingFace token for gated access.'
+          exit 1
+      }
+    wait: true
+    timeout: 7200
+    weight: 500
 
   # Record download completion
   - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\LLM', value: 'DownloadComplete', type: REG_DWORD, data: '1'}

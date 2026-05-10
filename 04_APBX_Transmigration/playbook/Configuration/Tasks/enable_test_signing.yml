@@ -25,49 +25,42 @@ actions:
       weight: 10
 
   # ── Step 3: Protect BCD store from user reversal ────────────────────
-  # Sets ACL so only SYSTEM can write to BCD template.
-  # Prevents user from running 'bcdedit /set testsigning off'.
   - !powerShell:
     command: |
-      $bcdPath = "$env:SystemRoot\System32\config\BCD-Template"
+      $bcdPath = Join-Path $env:SystemRoot 'System32\config\BCD-Template'
       if (Test-Path $bcdPath) {
           try {
               $acl = Get-Acl $bcdPath
-              $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-                  "BUILTIN\Users", "Write", "Deny"
-              )
+              $rule = New-Object System.Security.AccessControl.FileSystemAccessRule('BUILTIN\Users', 'Write', 'Deny')
               $acl.AddAccessRule($rule)
               Set-Acl $bcdPath $acl
-              Write-Host "[TEST-SIGN] BCD template write-protected" -ForegroundColor Green
+              Write-Host '[TEST-SIGN] BCD template write-protected' -ForegroundColor Green
           } catch {
-              Write-Warning "[TEST-SIGN] BCD ACL protection failed: $_"
-              Write-Warning "[TEST-SIGN] Test signing still enabled, but user could reverse it"
+              Write-Warning ('[TEST-SIGN] BCD ACL protection failed: ' + $_)
+              Write-Warning '[TEST-SIGN] Test signing still enabled, but user could reverse it'
           }
       } else {
-          Write-Host "[TEST-SIGN] BCD template not found (normal on some editions)" -ForegroundColor DarkGray
+          Write-Host '[TEST-SIGN] BCD template not found (normal on some editions)' -ForegroundColor DarkGray
       }
     wait: true
 
   # ── Step 4: Registry flag — mark test signing as SymbioseOS-managed ─
   - !registryValue:
       path: 'HKLM\SOFTWARE\SymbioseOS\Infrastructure'
-      name: 'TestSigningManaged'
-      value: '1'
+      value: 'TestSigningManaged'
+      data: '1'
       type: REG_DWORD
 
   # ── Step 5: Verification ────────────────────────────────────────────
   - !powerShell:
     command: |
-      # Verify test signing is enabled
-      $bcd = bcdedit /enum "{current}" 2>&1
-      $testSign = $bcd | Select-String "testsigning\s+Yes"
-
+      $bcd = bcdedit /enum '{current}' 2>&1
+      $testSign = $bcd | Select-String 'testsigning\s+Yes'
       if ($testSign) {
-          Write-Host "[TEST-SIGN] ✓ Test signing ENABLED" -ForegroundColor Green
+          Write-Host '[TEST-SIGN] Test signing ENABLED' -ForegroundColor Green
       } else {
-          Write-Warning "[TEST-SIGN] ⚠ Test signing not confirmed — may need reboot"
+          Write-Warning '[TEST-SIGN] Test signing not confirmed - may need reboot'
       }
-
-      Write-Host "[TEST-SIGN] Phase 1b complete." -ForegroundColor Cyan
-      Write-Host "[TEST-SIGN] symbiose_bridge.sys will load after reboot." -ForegroundColor Cyan
+      Write-Host '[TEST-SIGN] Phase 1b complete.' -ForegroundColor Cyan
+      Write-Host '[TEST-SIGN] symbiose_bridge.sys will load after reboot.' -ForegroundColor Cyan
     wait: true

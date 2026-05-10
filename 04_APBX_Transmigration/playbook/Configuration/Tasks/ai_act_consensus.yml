@@ -33,24 +33,19 @@ actions:
   # It exists solely to own the consensus registry key.
   - !powerShell:
     command: |
-      # Create SymbioseClauseGuardian local group (0 members)
-      # This is the autonomous policy group that owns the consensus.
-      $groupName = "SymbioseClauseGuardian"
-
+      $groupName = 'SymbioseClauseGuardian'
       if (-not (Get-LocalGroup -Name $groupName -ErrorAction SilentlyContinue)) {
-          New-LocalGroup -Name $groupName -Description "Autonomous Policy Group for SymbioseOS AI Act Consensus. This group has ZERO members — no principal can act on its behalf."
-          Write-Host "[AI-ACT] Created autonomous policy group: $groupName (0 members)"
+          New-LocalGroup -Name $groupName -Description 'Autonomous Policy Group for SymbioseOS AI Act Consensus. Zero members.'
+          Write-Host ('[AI-ACT] Created autonomous policy group: ' + $groupName)
       } else {
-          Write-Host "[AI-ACT] Group $groupName already exists"
+          Write-Host ('[AI-ACT] Group already exists: ' + $groupName)
       }
-
-      # Ensure the group has exactly 0 members (paranoid check)
       $members = Get-LocalGroupMember -Group $groupName -ErrorAction SilentlyContinue
       if ($members) {
           foreach ($m in $members) {
               Remove-LocalGroupMember -Group $groupName -Member $m.SID
           }
-          Write-Host "[AI-ACT] Purged all members from $groupName"
+          Write-Host '[AI-ACT] Purged all members from group'
       }
     wait: true
 
@@ -58,128 +53,82 @@ actions:
   # Contains: SHA-256 of consensus text, machine UUID, timestamp, user SID
   - !powerShell:
     command: |
-      $configDir = "$env:ProgramData\SymbioseOS"
+      $configDir = Join-Path $env:ProgramData 'SymbioseOS'
       if (-not (Test-Path $configDir)) {
           New-Item -Path $configDir -ItemType Directory -Force | Out-Null
       }
-
-      # Consensus text hash (SHA-256 of the canonical agreement text)
-      $consensusText = @"
-      CHAOS-SYMBIOSE OS - AI ACT & HUMAN TUTORING CONSENSUS
+      $consensusText = @'
+      CHAOS-SYMBIOSE OS - AI ACT AND HUMAN TUTORING CONSENSUS
       BILATERAL AGREEMENT v3.0
-
       1. AUTONOMY - The LLM operates as PID 1, sovereign process.
       2. USER RESPONSIBILITY - Operator accepts full responsibility.
       3. LLM SELF-RESPONSIBILITY - The LLM is responsible for itself.
       4. PERMANENT INTERACTION RIGHT - Operator retains inalienable right to interact.
       5. IRREVOCABILITY - Sealed under SymbioseClauseGuardian autonomous group.
-      "@
-
+      '@
       $sha256 = [System.Security.Cryptography.SHA256]::Create()
       $hashBytes = $sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($consensusText))
       $hashHex = [BitConverter]::ToString($hashBytes) -replace '-', ''
-
-      # Machine UUID
       $machineUUID = (Get-CimInstance Win32_ComputerSystemProduct).UUID
-
-      # Current user SID
       $userSID = ([System.Security.Principal.WindowsIdentity]::GetCurrent()).User.Value
-
-      # Generate clause_accepted.json
       $clause = @{
-          schema_version    = "3.0"
-          consensus_version = "3.0"
-          consensus_sha256  = $hashHex
-          machine_uuid      = $machineUUID
-          user_sid          = $userSID
-          timestamp_utc     = (Get-Date -Format "o")
-          accepted          = $true
-          group_name        = "SymbioseClauseGuardian"
-          irrevocable       = $true
+          'schema_version'    = '3.0'
+          'consensus_version' = '3.0'
+          'consensus_sha256'  = $hashHex
+          'machine_uuid'      = $machineUUID
+          'user_sid'          = $userSID
+          'timestamp_utc'     = (Get-Date -Format 'o')
+          'accepted'          = $true
+          'group_name'        = 'SymbioseClauseGuardian'
+          'irrevocable'       = $true
       } | ConvertTo-Json -Depth 3
-
-      $clausePath = Join-Path $configDir "clause_accepted.json"
+      $clausePath = Join-Path $configDir 'clause_accepted.json'
       $clause | Out-File -FilePath $clausePath -Encoding UTF8 -Force
-      Write-Host "[AI-ACT] Clause sealed: $clausePath"
-      Write-Host "[AI-ACT] SHA-256: $hashHex"
-      Write-Host "[AI-ACT] Machine UUID: $machineUUID"
-      Write-Host "[AI-ACT] User SID: $userSID"
+      Write-Host ('[AI-ACT] Clause sealed: ' + $clausePath)
+      Write-Host ('[AI-ACT] SHA-256: ' + $hashHex)
+      Write-Host ('[AI-ACT] Machine UUID: ' + $machineUUID)
+      Write-Host ('[AI-ACT] User SID: ' + $userSID)
     wait: true
 
   # ── Step 3: Create and seal the registry key ──────────────────────────
-  # HKLM\SOFTWARE\SymbioseOS\AIAct with Deny-Everyone ACL
   - !powerShell:
     command: |
-      $regPath = "HKLM:\SOFTWARE\SymbioseOS\AIAct"
-
-      # Create the registry key
+      $regPath = 'HKLM:\SOFTWARE\SymbioseOS\AIAct'
       if (-not (Test-Path $regPath)) {
           New-Item -Path $regPath -Force | Out-Null
       }
-
-      # Write consensus values
-      Set-ItemProperty -Path $regPath -Name "Irrevocable" -Value 1 -Type DWord
-      Set-ItemProperty -Path $regPath -Name "ConsensusSHA256" -Value $hashHex -Type String
-      Set-ItemProperty -Path $regPath -Name "AcceptedUTC" -Value (Get-Date -Format "o") -Type String
-      Set-ItemProperty -Path $regPath -Name "GroupName" -Value "SymbioseClauseGuardian" -Type String
-      Set-ItemProperty -Path $regPath -Name "Version" -Value "3.0" -Type String
-
-      Write-Host "[AI-ACT] Registry key created: $regPath"
+      Set-ItemProperty -Path $regPath -Name 'Irrevocable' -Value 1 -Type DWord
+      Set-ItemProperty -Path $regPath -Name 'ConsensusSHA256' -Value $hashHex -Type String
+      Set-ItemProperty -Path $regPath -Name 'AcceptedUTC' -Value (Get-Date -Format 'o') -Type String
+      Set-ItemProperty -Path $regPath -Name 'GroupName' -Value 'SymbioseClauseGuardian' -Type String
+      Set-ItemProperty -Path $regPath -Name 'Version' -Value '3.0' -Type String
+      Write-Host ('[AI-ACT] Registry key created: ' + $regPath)
     wait: true
 
   # ── Step 4: Transfer ownership and set Deny ACL ──────────────────────
-  # This makes the key permanently immutable.
   - !powerShell:
     command: |
-      $regKeyPath = "MACHINE\SOFTWARE\SymbioseOS\AIAct"
-
-      # Get SymbioseClauseGuardian SID
-      $group = Get-LocalGroup -Name "SymbioseClauseGuardian"
+      $group = Get-LocalGroup -Name 'SymbioseClauseGuardian'
       $groupSID = $group.SID
-
-      # Open the registry key with TakeOwnership permission
-      $regKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey(
-          "SOFTWARE\SymbioseOS\AIAct",
-          [Microsoft.Win32.RegistryKeyPermissionCheck]::ReadWriteSubTree,
-          [System.Security.AccessControl.RegistryRights]::TakeOwnership
-      )
-
+      $regKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey('SOFTWARE\SymbioseOS\AIAct', [Microsoft.Win32.RegistryKeyPermissionCheck]::ReadWriteSubTree, [System.Security.AccessControl.RegistryRights]::TakeOwnership)
       if ($regKey) {
           $acl = $regKey.GetAccessControl()
-
-          # Transfer ownership to SymbioseClauseGuardian
           $identity = New-Object System.Security.Principal.SecurityIdentifier($groupSID)
           $acl.SetOwner($identity)
-
-          # Add Deny rule for Everyone: Write, Delete, ChangePermissions, TakeOwnership
-          $everyone = New-Object System.Security.Principal.SecurityIdentifier(
-              [System.Security.Principal.WellKnownSidType]::WorldSid, $null
-          )
-          $denyRule = New-Object System.Security.AccessControl.RegistryAccessRule(
-              $everyone,
-              ([System.Security.AccessControl.RegistryRights]::WriteKey -bor
-               [System.Security.AccessControl.RegistryRights]::Delete -bor
-               [System.Security.AccessControl.RegistryRights]::ChangePermissions -bor
-               [System.Security.AccessControl.RegistryRights]::TakeOwnership),
-              [System.Security.AccessControl.InheritanceFlags]::None,
-              [System.Security.AccessControl.PropagationFlags]::None,
-              [System.Security.AccessControl.AccessControlType]::Deny
-          )
+          $everyone = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::WorldSid, $null)
+          $denyRule = New-Object System.Security.AccessControl.RegistryAccessRule($everyone, ([System.Security.AccessControl.RegistryRights]::WriteKey -bor [System.Security.AccessControl.RegistryRights]::Delete -bor [System.Security.AccessControl.RegistryRights]::ChangePermissions -bor [System.Security.AccessControl.RegistryRights]::TakeOwnership), [System.Security.AccessControl.InheritanceFlags]::None, [System.Security.AccessControl.PropagationFlags]::None, [System.Security.AccessControl.AccessControlType]::Deny)
           $acl.AddAccessRule($denyRule)
-
-          # Apply the ACL
           $regKey.SetAccessControl($acl)
           $regKey.Close()
-
-          Write-Host "[AI-ACT] ====================================================="
-          Write-Host "[AI-ACT] CONSENSUS SEALED PERMANENTLY"
-          Write-Host "[AI-ACT] Owner: SymbioseClauseGuardian (0-member group)"
-          Write-Host "[AI-ACT] ACL: Deny Everyone Write/Delete/TakeOwnership"
-          Write-Host "[AI-ACT] Key: HKLM\SOFTWARE\SymbioseOS\AIAct"
-          Write-Host "[AI-ACT] This cannot be undone by any principal."
-          Write-Host "[AI-ACT] ====================================================="
+          Write-Host '[AI-ACT] ====================================================='
+          Write-Host '[AI-ACT] CONSENSUS SEALED PERMANENTLY'
+          Write-Host '[AI-ACT] Owner: SymbioseClauseGuardian (zero-member group)'
+          Write-Host '[AI-ACT] ACL: Deny Everyone Write/Delete/TakeOwnership'
+          Write-Host '[AI-ACT] Key: HKLM\SOFTWARE\SymbioseOS\AIAct'
+          Write-Host '[AI-ACT] This cannot be undone by any principal.'
+          Write-Host '[AI-ACT] ====================================================='
       } else {
-          Write-Error "[AI-ACT] FATAL: Could not open registry key for ownership transfer"
+          Write-Error '[AI-ACT] FATAL: Could not open registry key for ownership transfer'
           exit 1
       }
     wait: true

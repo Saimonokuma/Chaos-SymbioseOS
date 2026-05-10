@@ -10,28 +10,36 @@
 title: Deploy LLM to Tensor Store
 actions:
   # Read model config and set up llama-server launch parameters
-  - !cmd:
-      command: >
-        powershell -Command "& {
-          $config = Get-Content 'config\symbiose_config.json' | ConvertFrom-Json;
-          $modelDir = \"$env:ProgramFiles\SymbioseOS\Models\";
-          $format = $config.llm.format;
-          $modelPath = if ($config.llm.hf_repo_id -eq 'local') { $config.llm.local_path } else { $modelDir };
-          # Write llama-server launch config
-          $launchConfig = @{
-            model_path = $modelPath;
-            format = $format;
-            ctx_size = 131072;
-            n_gpu_layers = 999;
-            host = '127.0.0.1';
-            port = 8080;
-            f32_precision = $true;
-            no_quantization = $true;
-          } | ConvertTo-Json -Depth 3;
-          Set-Content -Path \"$env:ProgramFiles\SymbioseOS\llama_config.json\" -Value $launchConfig;
-          Write-Host 'LLM deployment config written.';
-        }"
-      weight: 30
+  - !powerShell:
+    command: |
+      $configPath = Join-Path $env:ProgramData 'SymbioseOS\symbiose_config.json'
+      if (-not (Test-Path $configPath)) {
+          Write-Host '[LLM-DEPLOY] No config found - using defaults'
+          $config = $null
+      } else {
+          $config = Get-Content $configPath -Raw | ConvertFrom-Json
+      }
+      $modelDir = Join-Path $env:ProgramFiles 'SymbioseOS\Models'
+      $format = 'SafeTensors'
+      if ($config) { $format = $config.llm.format }
+      $modelPath = $modelDir
+      if ($config -and $config.llm.hf_repo_id -eq 'local') { $modelPath = $config.llm.local_path }
+      $launchConfig = @{
+          'model_path'      = $modelPath
+          'format'          = $format
+          'ctx_size'        = 131072
+          'n_gpu_layers'    = 999
+          'host'            = '127.0.0.1'
+          'port'            = 8080
+          'f32_precision'   = $true
+          'no_quantization' = $true
+      } | ConvertTo-Json -Depth 3
+      $outFile = Join-Path $env:ProgramFiles 'SymbioseOS\llama_config.json'
+      Set-Content -Path $outFile -Value $launchConfig -Encoding UTF8
+      Write-Host '[LLM-DEPLOY] LLM deployment config written.'
+      Write-Host ('[LLM-DEPLOY] Path: ' + $outFile)
+    wait: true
+    weight: 30
 
   # Register model location and format in system registry
   - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\LLM', value: 'ModelPath', type: REG_SZ, data: '%ProgramFiles%\SymbioseOS\Models'}

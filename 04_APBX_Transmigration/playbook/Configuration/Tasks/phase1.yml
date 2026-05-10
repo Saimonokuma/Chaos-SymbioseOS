@@ -6,35 +6,34 @@
 # for protected registry modifications that require SYSTEM-level access.
 
 actions:
-  - !status: {status: 'Bootstrapping TrustedInstaller execution context'}
+  - !writeStatus: {status: 'Bootstrapping TrustedInstaller execution context'}
 
   # 1. Create SymbioseOS scheduled task running as TrustedInstaller
   - !powerShell:
       command: |
-        # Create a scheduled task that runs as NT SERVICE\TrustedInstaller
-        # This allows protected registry modifications
-        $taskName = "SymbioseOS-Phase1-Bootstrap"
-        $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -Command `"Write-Host 'TrustedInstaller context active'`""
-        $principal = New-ScheduledTaskPrincipal -UserId "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464" -LogonType ServiceAccount -RunLevel Highest
+        $taskName = 'SymbioseOS-Phase1-Bootstrap'
+        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -ExecutionPolicy Bypass -Command Write-Host TrustedInstaller_context_active'
+        $tiSid = 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'
+        $principal = New-ScheduledTaskPrincipal -UserId $tiSid -LogonType ServiceAccount -RunLevel Highest
         Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Force | Out-Null
-        Write-Host "[PHASE1] TrustedInstaller task registered: $taskName"
+        Write-Host ('[PHASE1] TrustedInstaller task registered: ' + $taskName)
       weight: 30
 
   # 2. Verify TrustedInstaller context
   - !powerShell:
       command: |
-        $taskName = "SymbioseOS-Phase1-Bootstrap"
+        $taskName = 'SymbioseOS-Phase1-Bootstrap'
         $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
         if ($task) {
-          Write-Host "[PHASE1] TrustedInstaller bootstrap ready"
+          Write-Host '[PHASE1] TrustedInstaller bootstrap ready'
         } else {
-          throw "TrustedInstaller bootstrap failed"
+          throw 'TrustedInstaller bootstrap failed'
         }
       weight: 10
 
   # 3. Clean up bootstrap task
   - !powerShell:
       command: |
-        Unregister-ScheduledTask -TaskName "SymbioseOS-Phase1-Bootstrap" -Confirm:$false -ErrorAction SilentlyContinue
-        Write-Host "[PHASE1] Bootstrap task cleaned up"
+        Unregister-ScheduledTask -TaskName 'SymbioseOS-Phase1-Bootstrap' -Confirm:$false -ErrorAction SilentlyContinue
+        Write-Host '[PHASE1] Bootstrap task cleaned up'
       weight: 10

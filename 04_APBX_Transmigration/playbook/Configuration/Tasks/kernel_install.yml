@@ -6,55 +6,62 @@
 # directory to the SymbioseOS installation path on the target drive.
 
 actions:
-  - !status: {status: 'Installing SymbioseKernel 64-bit and initramfs'}
+  - !writeStatus: {status: 'Installing SymbioseKernel 64-bit and initramfs'}
 
   # 1. Create SymbioseOS directory on target drive
   - !powerShell:
       command: |
-        $config = Get-Content "config\symbiose_config.json" | ConvertFrom-Json
-        $installPath = "$env:ProgramData\SymbioseOS\Kernel"
+        $installPath = Join-Path $env:ProgramData 'SymbioseOS\Kernel'
         New-Item -ItemType Directory -Path $installPath -Force | Out-Null
-        Write-Host "[KERNEL] Install path: $installPath"
+        Write-Host ('[KERNEL] Install path: ' + $installPath)
       weight: 10
 
   # 2. Copy kernel image
   - !powerShell:
       command: |
-        $installPath = "$env:ProgramData\SymbioseOS\Kernel"
-        Copy-Item "Executables\Kernel\BZIMAGE" "$installPath\BZIMAGE" -Force
-        Write-Host "[KERNEL] Installed BZIMAGE: $((Get-Item "$installPath\BZIMAGE").Length / 1MB) MB"
+        $installPath = Join-Path $env:ProgramData 'SymbioseOS\Kernel'
+        $dest = Join-Path $installPath 'BZIMAGE'
+        Copy-Item 'Executables\Kernel\BZIMAGE' $dest -Force
+        $sz = [math]::Round((Get-Item $dest).Length / 1MB, 1)
+        Write-Host ('[KERNEL] Installed BZIMAGE: ' + $sz + ' MB')
       weight: 30
+      exeDir: true
 
   # 3. Copy initramfs
   - !powerShell:
       command: |
-        $installPath = "$env:ProgramData\SymbioseOS\Kernel"
-        Copy-Item "Executables\Kernel\initrd.img" "$installPath\initrd.img" -Force
-        Write-Host "[KERNEL] Installed initrd.img: $((Get-Item "$installPath\initrd.img").Length / 1KB) KB"
+        $installPath = Join-Path $env:ProgramData 'SymbioseOS\Kernel'
+        $dest = Join-Path $installPath 'initrd.img'
+        Copy-Item 'Executables\Kernel\initrd.img' $dest -Force
+        $sz = [math]::Round((Get-Item $dest).Length / 1KB, 1)
+        Write-Host ('[KERNEL] Installed initrd.img: ' + $sz + ' KB')
       weight: 30
+      exeDir: true
 
   # 4. Write kernel path to registry for ChaosLoader
   - !registryValue:
       path: 'HKLM\SOFTWARE\SymbioseOS\Kernel'
-      name: 'BzImagePath'
-      value: '%ProgramData%\SymbioseOS\Kernel\BZIMAGE'
+      value: 'BzImagePath'
+      data: '%ProgramData%\SymbioseOS\Kernel\BZIMAGE'
       type: REG_EXPAND_SZ
 
   - !registryValue:
       path: 'HKLM\SOFTWARE\SymbioseOS\Kernel'
-      name: 'InitrdPath'
-      value: '%ProgramData%\SymbioseOS\Kernel\initrd.img'
+      value: 'InitrdPath'
+      data: '%ProgramData%\SymbioseOS\Kernel\initrd.img'
       type: REG_EXPAND_SZ
 
   # 5. Verify installation
   - !powerShell:
       command: |
-        $installPath = "$env:ProgramData\SymbioseOS\Kernel"
-        $bz = Get-Item "$installPath\BZIMAGE" -ErrorAction SilentlyContinue
-        $rd = Get-Item "$installPath\initrd.img" -ErrorAction SilentlyContinue
+        $installPath = Join-Path $env:ProgramData 'SymbioseOS\Kernel'
+        $bz = Get-Item (Join-Path $installPath 'BZIMAGE') -ErrorAction SilentlyContinue
+        $rd = Get-Item (Join-Path $installPath 'initrd.img') -ErrorAction SilentlyContinue
         if ($bz -and $rd) {
-          Write-Host "[KERNEL] BZIMAGE ($([math]::Round($bz.Length/1MB,1)) MB) + initrd.img ($([math]::Round($rd.Length/1KB,1)) KB) installed"
+          $bzMb = [math]::Round($bz.Length/1MB,1)
+          $rdKb = [math]::Round($rd.Length/1KB,1)
+          Write-Host ('[KERNEL] BZIMAGE (' + $bzMb + ' MB) + initrd.img (' + $rdKb + ' KB) installed')
         } else {
-          throw "Kernel installation verification failed"
+          throw 'Kernel installation verification failed'
         }
       weight: 10

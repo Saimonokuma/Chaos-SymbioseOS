@@ -21,59 +21,52 @@ actions:
 
   - !powerShell:
     command: |
-      $configDir = "$env:ProgramData\SymbioseOS"
+      $configDir = Join-Path $env:ProgramData 'SymbioseOS'
       if (-not (Test-Path $configDir)) {
           New-Item -Path $configDir -ItemType Directory -Force | Out-Null
       }
-
-      # Model routing table
-      # Maps AME Wizard option names to HuggingFace repo IDs + metadata
       $models = @{
-          "llm-devstral" = @{
-              repo_id       = "mistralai/Devstral-Small-2505"
-              name          = "Devstral Large"
-              architecture  = "MoE"
-              precision     = "F32"
-              param_count_b = 100
-              vram_gb       = 400
+          'llm-devstral' = @{
+              'repo_id'       = 'mistralai/Devstral-Small-2505'
+              'name'          = 'Devstral Large'
+              'architecture'  = 'MoE'
+              'precision'     = 'F32'
+              'param_count_b' = 100
+              'vram_gb'       = 400
           }
-          "llm-mistral" = @{
-              repo_id       = "mistralai/Mistral-Large-Instruct-2407"
-              name          = "Mistral Large 2 123B"
-              architecture  = "Dense"
-              precision     = "F32"
-              param_count_b = 123
-              vram_gb       = 492
+          'llm-mistral' = @{
+              'repo_id'       = 'mistralai/Mistral-Large-Instruct-2407'
+              'name'          = 'Mistral Large 2 123B'
+              'architecture'  = 'Dense'
+              'precision'     = 'F32'
+              'param_count_b' = 123
+              'vram_gb'       = 492
           }
-          "llm-mixtral" = @{
-              repo_id       = "mistralai/Mixtral-8x22B-v0.1"
-              name          = "Mixtral 8x22B 141B"
-              architecture  = "MoE"
-              precision     = "F32"
-              param_count_b = 141
-              vram_gb       = 564
+          'llm-mixtral' = @{
+              'repo_id'       = 'mistralai/Mixtral-8x22B-v0.1'
+              'name'          = 'Mixtral 8x22B 141B'
+              'architecture'  = 'MoE'
+              'precision'     = 'F32'
+              'param_count_b' = 141
+              'vram_gb'       = 564
           }
-          "llm-local" = @{
-              repo_id       = "LOCAL"
-              name          = "User-specified local model"
-              architecture  = "Unknown"
-              precision     = "F32"
-              param_count_b = 0
-              vram_gb       = 0
+          'llm-local' = @{
+              'repo_id'       = 'LOCAL'
+              'name'          = 'User-specified local model'
+              'architecture'  = 'Unknown'
+              'precision'     = 'F32'
+              'param_count_b' = 0
+              'vram_gb'       = 0
           }
       }
-
-      # Write all model options for the configurator to read
       $modelInfo = @{
-          available_models = $models
-          selected_option  = ""
+          'available_models' = $models
+          'selected_option'  = ''
       }
-
-      $outputPath = Join-Path $env:TEMP "symbiose_models.json"
+      $outputPath = Join-Path $env:TEMP 'symbiose_models.json'
       $modelInfo | ConvertTo-Json -Depth 4 | Out-File -FilePath $outputPath -Encoding UTF8 -Force
-
-      Write-Host "[CONFIG-007] Model routing table written to $outputPath"
-      Write-Host "[CONFIG-007] Constitutional constraint: F32 ONLY — no quantization"
+      Write-Host ('[CONFIG-007] Model routing table written to ' + $outputPath)
+      Write-Host '[CONFIG-007] Constitutional constraint: F32 ONLY - no quantization'
     wait: true
 
   # Handle 'llm-local' selection — open file picker for GGUF/SafeTensors
@@ -81,35 +74,30 @@ actions:
   - !powerShell:
     command: |
       Add-Type -AssemblyName System.Windows.Forms
-
       $dialog = New-Object System.Windows.Forms.OpenFileDialog
-      $dialog.Title = "SymbioseOS — Select Local F32 Model File"
-      $dialog.Filter = "GGUF Files (*.gguf)|*.gguf|SafeTensors (*.safetensors)|*.safetensors|All Files (*.*)|*.*"
+      $dialog.Title = 'SymbioseOS - Select Local F32 Model File'
+      $dialog.Filter = 'GGUF Files (*.gguf)|*.gguf|SafeTensors (*.safetensors)|*.safetensors|All Files (*.*)|*.*'
       $dialog.FilterIndex = 1
       $dialog.Multiselect = $false
-      $dialog.InitialDirectory = [Environment]::GetFolderPath("UserProfile")
-
+      $dialog.InitialDirectory = [Environment]::GetFolderPath('UserProfile')
       $result = $dialog.ShowDialog()
-
       if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
           $modelPath = $dialog.FileName
-          $configDir = "$env:ProgramData\SymbioseOS"
+          $configDir = Join-Path $env:ProgramData 'SymbioseOS'
           if (-not (Test-Path $configDir)) {
               New-Item -Path $configDir -ItemType Directory -Force | Out-Null
           }
-
-          # Write selected path ONLY — model is loaded later by hive_mind at boot
           $localConfig = @{
-              repo_id    = "LOCAL"
-              model_path = $modelPath
-              file_name  = [System.IO.Path]::GetFileName($modelPath)
-              precision  = "F32"
+              'repo_id'    = 'LOCAL'
+              'model_path' = $modelPath
+              'file_name'  = [System.IO.Path]::GetFileName($modelPath)
+              'precision'  = 'F32'
           }
-          $localConfig | ConvertTo-Json | Out-File "$configDir\local_model.json" -Encoding UTF8 -Force
-
-          Write-Host "[CONFIG-007] Local model path saved: $modelPath"
+          $outFile = Join-Path $configDir 'local_model.json'
+          $localConfig | ConvertTo-Json | Out-File $outFile -Encoding UTF8 -Force
+          Write-Host ('[CONFIG-007] Local model path saved: ' + $modelPath)
       } else {
-          Write-Host "[CONFIG-007] No file selected — will prompt again at boot"
+          Write-Host '[CONFIG-007] No file selected - will prompt again at boot'
       }
     wait: true
     option: llm-local
