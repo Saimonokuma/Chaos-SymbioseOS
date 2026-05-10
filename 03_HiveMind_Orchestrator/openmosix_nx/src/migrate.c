@@ -77,64 +77,15 @@ int find_or_alloc_node(const char* nodeId)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// node_score — Score a node for shard placement
-//
-// Reference: §VIII·2 lines 3444-3461
-//
-// Returns 0-100+. Higher = better candidate.
-// Weights: VRAM (10 pts/GB), thermal (penalty above 90°C),
-//          queue depth (-5 per job).
+// node_score / pick_best_node — Canonical implementations in node_score.c
 // ═══════════════════════════════════════════════════════════════════════════
 
-float node_score(HIVE_NODE* node)
-{
-    if (!node || !node->Active) return 0.0f;
-
-    // Check heartbeat timeout (§VIII·2 line 3450)
-    if (time(NULL) - node->LastHeartbeat > HEARTBEAT_TIMEOUT_S) {
-        node->Active = 0;
-        return 0.0f;
-    }
-
-    float vram_score    = node->VramFreeGb * 10.0f;         // 10 pts per free GB
-    float thermal_score = (90.0f - node->GpuTempC) * 1.5f;  // Penalty above 90°C
-    float queue_score   = 50.0f - (node->InferenceQueueDepth * 5.0f); // -5 per job
-
-    float total = vram_score + thermal_score + queue_score;
-    return (total < 0.0f) ? 0.0f : total;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// pick_best_node — Find optimal target for shard placement
-//
-// Reference: §VIII·2 lines 3463-3475
-// ═══════════════════════════════════════════════════════════════════════════
-
-HIVE_NODE* pick_best_node(float min_vram_gb)
-{
-    float best_score = -1.0f;
-    HIVE_NODE* best  = NULL;
-
-    for (int i = 0; i < MAX_NODES; i++) {
-        if (!g_NodeRegistry[i].Active) continue;
-        if (g_NodeRegistry[i].VramFreeGb < min_vram_gb) continue;
-
-        float s = node_score(&g_NodeRegistry[i]);
-        if (s > best_score) {
-            best_score = s;
-            best = &g_NodeRegistry[i];
-        }
-    }
-    return best;  // NULL if no node qualifies
-}
+/* Provided by node_score.c (HIVE-MOSIX-004) */
 
 // ═══════════════════════════════════════════════════════════════════════════
 // handle_cluster_announce — Process NODE_JOIN from #cluster-announce
 //
 // Reference: §VIII·1 lines 3424-3433
-//
-// Parses JSON capabilities and adds/updates the node in the registry.
-// Triggers rebalance after adding a new node.
 // ═══════════════════════════════════════════════════════════════════════════
 
 void handle_cluster_announce(const char* json_caps)
@@ -143,20 +94,14 @@ void handle_cluster_announce(const char* json_caps)
 
     HIVE_NODE node = {0};
 
-    // Minimal JSON parse — extract key fields
-    // In production: use a proper JSON parser (cJSON, etc.)
-    // For now: sscanf-based extraction matching the NODE_JOIN format
-
     char node_id[NODE_ID_LEN] = {0};
     char ip_addr[46] = {0};
     float vram_gb = 0, vram_free = 0, gpu_temp = 0, ram_free = 0;
     int cpu_cores = 0, rdma = 0;
 
-    // Parse node_id from JSON
     const char* p = strstr(json_caps, "\"node_id\"");
     if (p) sscanf(p, "\"node_id\": \"%16[^\"]\"", node_id);
 
-    // Parse IP address (Issue #3 — needed for RDMA reconnect)
     p = strstr(json_caps, "\"ip_addr\"");
     if (p) sscanf(p, "\"ip_addr\": \"%45[^\"]\"", ip_addr);
 
@@ -180,12 +125,9 @@ void handle_cluster_announce(const char* json_caps)
         if (strstr(p, "true")) rdma = 1;
     }
 
-    // Populate node struct
     strncpy(node.NodeId, node_id, NODE_ID_LEN - 1);
     strncpy(node.IpAddr, ip_addr, sizeof(node.IpAddr) - 1);
     node.VramFreeGb    = vram_free;
-    // Issue #1 fix: uint64_t multiplication avoids float precision loss
-    // (float mantissa = 24 bits → only ~16M precision, VRAM can be 48GB+)
     node.VramTotalBytes = (uint64_t)(vram_gb * 1024) * 1024 * 1024;
     node.GpuTempC      = gpu_temp;
     node.CpuCores      = cpu_cores;
@@ -194,7 +136,6 @@ void handle_cluster_announce(const char* json_caps)
     node.Active        = 1;
     node.LastHeartbeat = time(NULL);
 
-    // Add or update in registry (§VIII·1 lines 3430-3432)
     int slot = find_or_alloc_node(node.NodeId);
     if (slot >= 0) {
         g_NodeRegistry[slot] = node;
@@ -210,8 +151,6 @@ void handle_cluster_announce(const char* json_caps)
 
 // ═══════════════════════════════════════════════════════════════════════════
 // handle_node_pong — Update node stats from heartbeat
-//
-// Reference: §VIII·2 lines 3483-3487
 // ═══════════════════════════════════════════════════════════════════════════
 
 void handle_node_pong(const char* node_id, float temp, float vram_free,
@@ -232,9 +171,6 @@ void handle_node_pong(const char* node_id, float temp, float vram_free,
 
 // ═══════════════════════════════════════════════════════════════════════════
 // prune_dead_nodes — Remove nodes that missed heartbeats
-//
-// Reference: §VIII·2 line 3487
-// Nodes missing 2 consecutive PINGs (10s) are marked Active=0.
 // ═══════════════════════════════════════════════════════════════════════════
 
 void prune_dead_nodes(void)
@@ -251,7 +187,6 @@ void prune_dead_nodes(void)
             g_NodeRegistry[i].Active = 0;
             g_NodeCount = count_active_nodes();
 
-            // Announce node leave on IRC
             char msg[256];
             snprintf(msg, sizeof(msg),
                 "PRIVMSG #cluster-announce :NODE_LEAVE node=%s "
@@ -264,11 +199,6 @@ void prune_dead_nodes(void)
 
 // ═══════════════════════════════════════════════════════════════════════════
 // hive_mind_rebalance — Naive even-split layer distribution
-//
-// Reference: §VIII·4 lines 3573-3604
-//
-// Distributes layers evenly across active nodes. Fallback for single-node
-// deployments where harmonic weighting is unnecessary.
 // ═══════════════════════════════════════════════════════════════════════════
 
 void hive_mind_rebalance(void)
@@ -289,7 +219,6 @@ void hive_mind_rebalance(void)
         g_NodeRegistry[i].LayerEnd   = layer_cursor + node_layers - 1;
         layer_cursor += node_layers;
 
-        // Send SHARD_ASSIGN via IRC (§VIII·4 lines 3591-3599)
         char msg[256];
         snprintf(msg, sizeof(msg),
             "PRIVMSG #hive-mind :SHARD_ASSIGN node=%s layers=%u-%u "

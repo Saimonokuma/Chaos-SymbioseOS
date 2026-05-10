@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rdma-core libibverbs-dev librdmacm-dev \
     liburing-dev \
     libjpeg62-turbo-dev libturbojpeg0-dev \
+    libfftw3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . /src
