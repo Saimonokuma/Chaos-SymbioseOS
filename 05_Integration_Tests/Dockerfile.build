@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     liburing-dev \
     libjpeg62-turbo-dev libturbojpeg0-dev \
     libfftw3-dev \
+    libnl-3-dev libnl-route-3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . /src
@@ -80,7 +81,7 @@ RUN echo "=== BUILD 2: hive_mind (FULL — 21 modules + glue) ===" && \
         ${MX_DIR}/kv_shard_mgr.c \
         ${MX_DIR}/criugpu_daemon.c \
         ${MX_DIR}/rebalance_harmonic.c \
-        -lm -lpthread -lrdmacm -libverbs -luring -lturbojpeg -lfftw3 && \
+        -lm -lpthread -lrdmacm -libverbs -lnl-route-3 -lnl-3 -luring -lturbojpeg -lfftw3 && \
     file /output/hive_mind && \
     SIZE=$(stat -c%s /output/hive_mind) && \
     echo "=== hive_mind FULL BUILD COMPLETE: $SIZE bytes ==="
