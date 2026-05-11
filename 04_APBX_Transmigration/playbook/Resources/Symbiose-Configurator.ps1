@@ -188,7 +188,7 @@ $tab2.Controls.Add($ramSlider)
 
 $lblRamVal = New-Object System.Windows.Forms.Label
 $lblRamVal.Text = "$($sysData.ram.default_gb) GB"
-$lblRamVal.Location = New-Object System.Drawing.Point(570, $y + 8)
+$lblRamVal.Location = New-Object System.Drawing.Point(570, ($y + 8))
 $lblRamVal.Size = New-Object System.Drawing.Size(80, 25)
 $lblRamVal.ForeColor = $okColor
 $lblRamVal.Font = $fontTitle
@@ -217,7 +217,7 @@ $tab2.Controls.Add($cpuSlider)
 
 $lblCpuVal = New-Object System.Windows.Forms.Label
 $lblCpuVal.Text = "$($sysData.cpu.default_vcpu) vCPU"
-$lblCpuVal.Location = New-Object System.Drawing.Point(570, $y + 8)
+$lblCpuVal.Location = New-Object System.Drawing.Point(570, ($y + 8))
 $lblCpuVal.Size = New-Object System.Drawing.Size(90, 25)
 $lblCpuVal.ForeColor = $okColor
 $lblCpuVal.Font = $fontTitle
@@ -359,7 +359,7 @@ $tab3.Controls.Add($sensSlider)
 
 $lblSensVal = New-Object System.Windows.Forms.Label
 $lblSensVal.Text = "15"
-$lblSensVal.Location = New-Object System.Drawing.Point(570, $y + 8)
+$lblSensVal.Location = New-Object System.Drawing.Point(570, ($y + 8))
 $lblSensVal.Size = New-Object System.Drawing.Size(60, 25)
 $lblSensVal.ForeColor = $okColor
 $lblSensVal.Font = $fontTitle
