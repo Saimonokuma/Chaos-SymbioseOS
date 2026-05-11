@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Detect-GPU.ps1 — GPU Enumeration for SymbioseOS Phase 0
+    Detect-GPU.ps1 - GPU Enumeration for SymbioseOS Phase 0
     CONFIG-001: Enumerate all GPUs via PnP + WMI; output JSON.
 
 .DESCRIPTION
@@ -13,8 +13,8 @@
       device_id, vendor_id, driver_version, surrendered (default false)
 
 .NOTES
-    Reference: Interactive_Plan.md §IX·1 → hardware.gpu[]
-    Reference: Interactive_Plan.md §XI CONFIG-001 (line 4939)
+    Reference: Interactive_Plan.md SIX.1 - hardware.gpu[]
+    Reference: Interactive_Plan.md SXI CONFIG-001 (line 4939)
 #>
 
 [CmdletBinding()]
@@ -24,19 +24,19 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "[CONFIG-001] Enumerating GPUs..." -ForegroundColor Cyan
 
-# ── Collect from WMI (VRAM, friendly names) ───────────────────────────
+# -- Collect from WMI (VRAM, friendly names) ---------------------------
 $wmiGPUs = Get-CimInstance -ClassName Win32_VideoController |
     Where-Object { $_.AdapterCompatibility -ne $null }
 
-# ── Collect from PnP (PCI location paths) ─────────────────────────────
+# -- Collect from PnP (PCI location paths) -----------------------------
 $pnpGPUs = Get-PnpDevice -Class Display -Status OK -ErrorAction SilentlyContinue
 
-# ── Merge and build JSON array ────────────────────────────────────────
+# -- Merge and build JSON array ----------------------------------------
 $gpuList = @()
 
 foreach ($gpu in $wmiGPUs) {
     $vramBytes = [uint64]$gpu.AdapterRAM
-    # Win32_VideoController.AdapterRAM is uint32 — capped at 4GB.
+    # Win32_VideoController.AdapterRAM is uint32 - capped at 4GB.
     # For modern GPUs, query DXGI adapter or registry for true VRAM.
     $vramGb = [math]::Round($vramBytes / 1GB, 1)
 
@@ -71,7 +71,7 @@ foreach ($gpu in $wmiGPUs) {
                         }
                     }
                     
-                    # BAR1 size (for MMIO calculation — CONFIG-008)
+                    # BAR1 size (for MMIO calculation - CONFIG-008)
                     $bar1 = Get-ItemProperty -Path $key.PSPath -Name "HardwareInformation.MemorySize" -ErrorAction SilentlyContinue
                     if ($bar1) {
                         $bar1Gb = [math]::Round([uint64]$bar1.'HardwareInformation.MemorySize' / 1GB, 0)
@@ -105,20 +105,20 @@ foreach ($gpu in $wmiGPUs) {
 
     $gpuList += $gpuInfo
 
-    Write-Host "  [GPU] $($gpu.Name) — VRAM: ${vramGb}GB, BAR1: ${bar1Gb}GB, PCI: $pciLoc" -ForegroundColor Green
+    Write-Host "  [GPU] $($gpu.Name) - VRAM: ${vramGb}GB, BAR1: ${bar1Gb}GB, PCI: $pciLoc" -ForegroundColor Green
 }
 
-# ── Warn if only 1 GPU ────────────────────────────────────────────────
+# -- Warn if only 1 GPU ------------------------------------------------
 if ($gpuList.Count -eq 1) {
     Write-Host ""
-    Write-Host "  ⚠️  WARNING: Only 1 GPU detected!" -ForegroundColor Yellow
-    Write-Host "  ⚠️  Surrendering this GPU will cause display output to drop." -ForegroundColor Yellow
-    Write-Host "  ⚠️  You will need a second GPU or remote access to continue." -ForegroundColor Yellow
+    Write-Host "  [!]  WARNING: Only 1 GPU detected!" -ForegroundColor Yellow
+    Write-Host "  [!]  Surrendering this GPU will cause display output to drop." -ForegroundColor Yellow
+    Write-Host "  [!]  You will need a second GPU or remote access to continue." -ForegroundColor Yellow
     Write-Host ""
 }
 
-# ── Write output JSON ─────────────────────────────────────────────────
+# -- Write output JSON -------------------------------------------------
 $outputPath = Join-Path $env:TEMP "symbiose_gpus.json"
 $gpuList | ConvertTo-Json -Depth 3 | Out-File -FilePath $outputPath -Encoding UTF8 -Force
 
-Write-Host "[CONFIG-001] Found $($gpuList.Count) GPU(s) — saved to $outputPath" -ForegroundColor Cyan
+Write-Host "[CONFIG-001] Found $($gpuList.Count) GPU(s) - saved to $outputPath" -ForegroundColor Cyan

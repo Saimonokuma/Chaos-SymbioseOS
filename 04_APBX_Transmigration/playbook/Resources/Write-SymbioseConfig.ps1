@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-    Write-SymbioseConfig.ps1 — Final JSON Assembly (CONFIG-009)
+    Write-SymbioseConfig.ps1 - Final JSON Assembly (CONFIG-009)
     Merges all detection data + wizard selections into symbiose_config.json.
 
 .NOTES
-    Reference: Interactive_Plan.md §IX·1 (full schema)
+    Reference: Interactive_Plan.md SIX.1 (full schema)
 #>
 
 [CmdletBinding()]
@@ -19,7 +19,7 @@ if (-not (Test-Path $configDir)) {
     New-Item -Path $configDir -ItemType Directory -Force | Out-Null
 }
 
-# ── Load wizard result ───────────────────────────────────────────────
+# -- Load wizard result -----------------------------------------------
 $wizardFile = Join-Path $env:TEMP "symbiose_wizard.json"
 if (-not (Test-Path $wizardFile)) {
     Write-Error "[CONFIG-009] FATAL: Wizard result not found at $wizardFile"
@@ -27,14 +27,14 @@ if (-not (Test-Path $wizardFile)) {
 }
 $wizard = Get-Content $wizardFile -Raw | ConvertFrom-Json
 
-# ── Load model routing ───────────────────────────────────────────────
+# -- Load model routing -----------------------------------------------
 $modelFile = Join-Path $env:TEMP "symbiose_models.json"
 $modelData = @{ available_models = @{} }
 if (Test-Path $modelFile) {
     $modelData = Get-Content $modelFile -Raw | ConvertFrom-Json
 }
 
-# ── Build GPU array ──────────────────────────────────────────────────
+# -- Build GPU array --------------------------------------------------
 $gpuArray = @()
 foreach ($gpu in $wizard.gpu_selections) {
     $gpuArray += @{
@@ -46,7 +46,7 @@ foreach ($gpu in $wizard.gpu_selections) {
     }
 }
 
-# ── Build NVMe array ─────────────────────────────────────────────────
+# -- Build NVMe array -------------------------------------------------
 $nvmeArray = @()
 foreach ($drv in $wizard.drive_selections) {
     $nvmeArray += @{
@@ -58,13 +58,13 @@ foreach ($drv in $wizard.drive_selections) {
     }
 }
 
-# ── Determine rootfs drive ───────────────────────────────────────────
+# -- Determine rootfs drive -------------------------------------------
 $rootfsDrive = ""
 if ($nvmeArray.Count -gt 0) {
     $rootfsDrive = $nvmeArray[0].pci_location
 }
 
-# ── Build final config (§IX·1 schema) ────────────────────────────────
+# -- Build final config (SIX.1 schema) --------------------------------
 $config = [ordered]@{
     schema_version = "3.0"
     session_id     = [guid]::NewGuid().ToString()
@@ -126,11 +126,11 @@ $config = [ordered]@{
     }
 }
 
-# ── Write JSON ───────────────────────────────────────────────────────
+# -- Write JSON -------------------------------------------------------
 $outputPath = Join-Path $configDir "symbiose_config.json"
 $config | ConvertTo-Json -Depth 5 | Out-File -FilePath $outputPath -Encoding UTF8 -Force
 
-Write-Host "[CONFIG-009] ════════════════════════════════════════════" -ForegroundColor Green
+Write-Host "[CONFIG-009] ============================================" -ForegroundColor Green
 Write-Host "[CONFIG-009] Configuration written: $outputPath" -ForegroundColor Green
 Write-Host "[CONFIG-009]   GPUs surrendered: $($gpuArray.Count)" -ForegroundColor Green
 Write-Host "[CONFIG-009]   CCD drives: $($nvmeArray.Count)" -ForegroundColor Green
@@ -138,4 +138,4 @@ Write-Host "[CONFIG-009]   RAM: $($wizard.ram_allocation_gb) GB" -ForegroundColo
 Write-Host "[CONFIG-009]   vCPU: $($wizard.vcpu_count)" -ForegroundColor Green
 Write-Host "[CONFIG-009]   Mode: $($wizard.execution_mode)" -ForegroundColor Green
 Write-Host "[CONFIG-009]   MMIO: $($wizard.high_mmio_mb) MB" -ForegroundColor Green
-Write-Host "[CONFIG-009] ════════════════════════════════════════════" -ForegroundColor Green
+Write-Host "[CONFIG-009] ============================================" -ForegroundColor Green

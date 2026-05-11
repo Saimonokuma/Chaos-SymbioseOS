@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Symbiose-Configurator.ps1 — Dark-themed WinForms Hardware Configuration GUI
+    Symbiose-Configurator.ps1 - Dark-themed WinForms Hardware Configuration GUI
     Handles CONFIG-003/004/005/006/008/011/012/013/014
 
 .DESCRIPTION
@@ -10,7 +10,7 @@
     Write-SymbioseConfig.ps1 later merges this with AME Wizard options.
 
 .NOTES
-    Reference: Interactive_Plan.md §IX·1 (symbiose_config.json schema)
+    Reference: Interactive_Plan.md SIX.1 (symbiose_config.json schema)
 #>
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -18,9 +18,9 @@ Add-Type -AssemblyName System.Drawing
 
 $ErrorActionPreference = "Stop"
 
-# ══════════════════════════════════════════════════════════════════════
+# ======================================================================
 # Load detection data
-# ══════════════════════════════════════════════════════════════════════
+# ======================================================================
 
 $gpuData = @()
 $driveData = @()
@@ -36,9 +36,9 @@ if (Test-Path $gpuFile)   { $gpuData   = Get-Content $gpuFile   -Raw | ConvertFr
 if (Test-Path $driveFile) { $driveData = Get-Content $driveFile  -Raw | ConvertFrom-Json }
 if (Test-Path $sysFile)   { $sysData   = Get-Content $sysFile    -Raw | ConvertFrom-Json }
 
-# ══════════════════════════════════════════════════════════════════════
+# ======================================================================
 # Theme colors
-# ══════════════════════════════════════════════════════════════════════
+# ======================================================================
 
 $bgDark      = [System.Drawing.Color]::FromArgb(18, 18, 24)
 $bgPanel     = [System.Drawing.Color]::FromArgb(28, 28, 38)
@@ -55,12 +55,12 @@ $fontNormal  = New-Object System.Drawing.Font("Segoe UI", 10)
 $fontSmall   = New-Object System.Drawing.Font("Segoe UI", 8.5)
 $fontMono    = New-Object System.Drawing.Font("Cascadia Code", 9)
 
-# ══════════════════════════════════════════════════════════════════════
+# ======================================================================
 # Main form
-# ══════════════════════════════════════════════════════════════════════
+# ======================================================================
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "SymbioseOS V3 — Hardware Configurator"
+$form.Text = "SymbioseOS V3 - Hardware Configurator"
 $form.Size = New-Object System.Drawing.Size(720, 620)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "FixedSingle"
@@ -69,9 +69,9 @@ $form.BackColor = $bgDark
 $form.ForeColor = $fgPrimary
 $form.Font = $fontNormal
 
-# ── Title bar ────────────────────────────────────────────────────────
+# -- Title bar --------------------------------------------------------
 $lblTitle = New-Object System.Windows.Forms.Label
-$lblTitle.Text = "⚙️  SymbioseOS V3 — Hardware Configuration"
+$lblTitle.Text = "[*]  SymbioseOS V3 - Hardware Configuration"
 $lblTitle.Font = $fontTitle
 $lblTitle.ForeColor = $fgPrimary
 $lblTitle.Location = New-Object System.Drawing.Point(20, 12)
@@ -86,23 +86,23 @@ $lblSub.Location = New-Object System.Drawing.Point(20, 40)
 $lblSub.AutoSize = $true
 $form.Controls.Add($lblSub)
 
-# ── Tab control ──────────────────────────────────────────────────────
+# -- Tab control ------------------------------------------------------
 $tabs = New-Object System.Windows.Forms.TabControl
 $tabs.Location = New-Object System.Drawing.Point(15, 65)
 $tabs.Size = New-Object System.Drawing.Size(680, 460)
 $tabs.Font = $fontNormal
 
-# ══════════════════════════════════════════════════════════════════════
+# ======================================================================
 # TAB 1: GPU + NVMe Selection (CONFIG-001/002)
-# ══════════════════════════════════════════════════════════════════════
+# ======================================================================
 
 $tab1 = New-Object System.Windows.Forms.TabPage
-$tab1.Text = "🖥️ Hardware"
+$tab1.Text = "[PC] Hardware"
 $tab1.BackColor = $bgPanel
 
 $y = 15
 $lblGpu = New-Object System.Windows.Forms.Label
-$lblGpu.Text = "GPU Selection — Select GPU(s) to surrender to SymbioseOS:"
+$lblGpu.Text = "GPU Selection - Select GPU(s) to surrender to SymbioseOS:"
 $lblGpu.Location = New-Object System.Drawing.Point(15, $y)
 $lblGpu.Size = New-Object System.Drawing.Size(640, 22)
 $lblGpu.ForeColor = $fgPrimary
@@ -118,14 +118,14 @@ $gpuChecklist.Font = $fontMono
 $gpuChecklist.BorderStyle = "None"
 
 foreach ($gpu in $gpuData) {
-    $label = "$($gpu.friendly_name) — VRAM: $($gpu.vram_gb)GB, BAR1: $($gpu.bar1_gb)GB"
+    $label = "$($gpu.friendly_name) - VRAM: $($gpu.vram_gb)GB, BAR1: $($gpu.bar1_gb)GB"
     $gpuChecklist.Items.Add($label, $true) | Out-Null
 }
 $tab1.Controls.Add($gpuChecklist)
 $y += 100
 
 $lblDrive = New-Object System.Windows.Forms.Label
-$lblDrive.Text = "NVMe/Storage — Select CCD (Continuous Context Drive):"
+$lblDrive.Text = "NVMe/Storage - Select CCD (Continuous Context Drive):"
 $lblDrive.Location = New-Object System.Drawing.Point(15, $y)
 $lblDrive.Size = New-Object System.Drawing.Size(640, 22)
 $lblDrive.ForeColor = $fgPrimary
@@ -141,8 +141,8 @@ $driveChecklist.Font = $fontMono
 $driveChecklist.BorderStyle = "None"
 
 foreach ($drv in $driveData) {
-    $warn = if ($drv.has_windows_partitions) { " ⚠️ WINDOWS" } else { "" }
-    $label = "$($drv.friendly_name) — $($drv.size_gb)GB $($drv.bus_type)$warn"
+    $warn = if ($drv.has_windows_partitions) { " [!] WINDOWS" } else { "" }
+    $label = "$($drv.friendly_name) - $($drv.size_gb)GB $($drv.bus_type)$warn"
     $checked = -not $drv.has_windows_partitions
     $driveChecklist.Items.Add($label, $checked) | Out-Null
 }
@@ -159,17 +159,17 @@ $tab1.Controls.Add($lblMmio)
 
 $tabs.TabPages.Add($tab1)
 
-# ══════════════════════════════════════════════════════════════════════
+# ======================================================================
 # TAB 2: RAM + vCPU + NUMA (CONFIG-003/004/005)
-# ══════════════════════════════════════════════════════════════════════
+# ======================================================================
 
 $tab2 = New-Object System.Windows.Forms.TabPage
-$tab2.Text = "💾 Resources"
+$tab2.Text = "[MEM] Resources"
 $tab2.BackColor = $bgPanel
 
 $y = 15
 $lblRam = New-Object System.Windows.Forms.Label
-$lblRam.Text = "RAM Allocation (GB) — Reserve 4GB for Windows host:"
+$lblRam.Text = "RAM Allocation (GB) - Reserve 4GB for Windows host:"
 $lblRam.Location = New-Object System.Drawing.Point(15, $y)
 $lblRam.AutoSize = $true
 $lblRam.ForeColor = $fgPrimary
@@ -198,7 +198,7 @@ $ramSlider.Add_ValueChanged({ $lblRamVal.Text = "$($ramSlider.Value) GB" })
 $y += 60
 
 $lblCpu = New-Object System.Windows.Forms.Label
-$lblCpu.Text = "vCPU Allocation — Reserve 2 cores for host ($($sysData.cpu.name)):"
+$lblCpu.Text = "vCPU Allocation - Reserve 2 cores for host ($($sysData.cpu.name)):"
 $lblCpu.Location = New-Object System.Drawing.Point(15, $y)
 $lblCpu.AutoSize = $true
 $lblCpu.ForeColor = $fgPrimary
@@ -239,7 +239,7 @@ $y += 30
 
 if (-not $sysData.numa.is_multi_numa) {
     $lblNumaNote = New-Object System.Windows.Forms.Label
-    $lblNumaNote.Text = "(Single NUMA node detected — NUMA pinning not applicable)"
+    $lblNumaNote.Text = "(Single NUMA node detected - NUMA pinning not applicable)"
     $lblNumaNote.Location = New-Object System.Drawing.Point(35, $y)
     $lblNumaNote.AutoSize = $true
     $lblNumaNote.ForeColor = $fgSecondary
@@ -258,7 +258,7 @@ $tab2.Controls.Add($lblMode)
 $y += 28
 
 $rbDisk = New-Object System.Windows.Forms.RadioButton
-$rbDisk.Text = "Disk-backed (persistent rootfs — survives reboot)"
+$rbDisk.Text = "Disk-backed (persistent rootfs - survives reboot)"
 $rbDisk.Location = New-Object System.Drawing.Point(30, $y)
 $rbDisk.Size = New-Object System.Drawing.Size(500, 22)
 $rbDisk.ForeColor = $fgPrimary
@@ -267,7 +267,7 @@ $tab2.Controls.Add($rbDisk)
 $y += 26
 
 $rbRam = New-Object System.Windows.Forms.RadioButton
-$rbRam.Text = "Ramdisk (volatile — faster, but lost on reboot)"
+$rbRam.Text = "Ramdisk (volatile - faster, but lost on reboot)"
 $rbRam.Location = New-Object System.Drawing.Point(30, $y)
 $rbRam.Size = New-Object System.Drawing.Size(500, 22)
 $rbRam.ForeColor = $fgPrimary
@@ -275,17 +275,17 @@ $tab2.Controls.Add($rbRam)
 
 $tabs.TabPages.Add($tab2)
 
-# ══════════════════════════════════════════════════════════════════════
+# ======================================================================
 # TAB 3: Multimodal (CONFIG-011/012/013/014)
-# ══════════════════════════════════════════════════════════════════════
+# ======================================================================
 
 $tab3 = New-Object System.Windows.Forms.TabPage
-$tab3.Text = "🧠 Multimodal"
+$tab3.Text = "[AI] Multimodal"
 $tab3.BackColor = $bgPanel
 
 $y = 15
 $lblMm = New-Object System.Windows.Forms.Label
-$lblMm.Text = "Multimodal Senses — Your AI will have:"
+$lblMm.Text = "Multimodal Senses - Your AI will have:"
 $lblMm.Location = New-Object System.Drawing.Point(15, $y)
 $lblMm.AutoSize = $true
 $lblMm.ForeColor = $fgPrimary
@@ -293,7 +293,7 @@ $tab3.Controls.Add($lblMm)
 $y += 30
 
 $chkVision = New-Object System.Windows.Forms.CheckBox
-$chkVision.Text = "👁️ Vision (CLIP normalization — requires mmproj)"
+$chkVision.Text = "[EYE] Vision (CLIP normalization - requires mmproj)"
 $chkVision.Location = New-Object System.Drawing.Point(30, $y)
 $chkVision.Size = New-Object System.Drawing.Size(500, 24)
 $chkVision.ForeColor = $fgPrimary
@@ -302,7 +302,7 @@ $tab3.Controls.Add($chkVision)
 $y += 30
 
 $chkSTT = New-Object System.Windows.Forms.CheckBox
-$chkSTT.Text = "👂 Hearing / STT (Whisper — requires .bin model)"
+$chkSTT.Text = "[EAR] Hearing / STT (Whisper - requires .bin model)"
 $chkSTT.Location = New-Object System.Drawing.Point(30, $y)
 $chkSTT.Size = New-Object System.Drawing.Size(500, 24)
 $chkSTT.ForeColor = $fgPrimary
@@ -311,7 +311,7 @@ $tab3.Controls.Add($chkSTT)
 $y += 30
 
 $chkTTS = New-Object System.Windows.Forms.CheckBox
-$chkTTS.Text = "🗣️ Speech / TTS (Piper — requires .onnx model)"
+$chkTTS.Text = "[VOICE] Speech / TTS (Piper - requires .onnx model)"
 $chkTTS.Location = New-Object System.Drawing.Point(30, $y)
 $chkTTS.Size = New-Object System.Drawing.Size(500, 24)
 $chkTTS.ForeColor = $fgPrimary
@@ -320,7 +320,7 @@ $tab3.Controls.Add($chkTTS)
 $y += 30
 
 $chkMoviola = New-Object System.Windows.Forms.CheckBox
-$chkMoviola.Text = "⚡ Moviola Delta-Motion (software frame differencing)"
+$chkMoviola.Text = "[BOLT] Moviola Delta-Motion (software frame differencing)"
 $chkMoviola.Location = New-Object System.Drawing.Point(30, $y)
 $chkMoviola.Size = New-Object System.Drawing.Size(500, 24)
 $chkMoviola.ForeColor = $fgPrimary
@@ -329,7 +329,7 @@ $tab3.Controls.Add($chkMoviola)
 $y += 30
 
 $chkDVS = New-Object System.Windows.Forms.CheckBox
-$chkDVS.Text = "📷 DVS Hardware (Dynamic Vision Sensor via libcaer)"
+$chkDVS.Text = "[CAM] DVS Hardware (Dynamic Vision Sensor via libcaer)"
 $chkDVS.Location = New-Object System.Drawing.Point(30, $y)
 $chkDVS.Size = New-Object System.Drawing.Size(500, 24)
 $chkDVS.ForeColor = $fgSecondary
@@ -369,14 +369,14 @@ $sensSlider.Add_ValueChanged({ $lblSensVal.Text = "$($sensSlider.Value)" })
 
 $tabs.TabPages.Add($tab3)
 
-# ══════════════════════════════════════════════════════════════════════
+# ======================================================================
 # Confirm button
-# ══════════════════════════════════════════════════════════════════════
+# ======================================================================
 
 $form.Controls.Add($tabs)
 
 $btnConfirm = New-Object System.Windows.Forms.Button
-$btnConfirm.Text = "✅  Confirm Configuration"
+$btnConfirm.Text = "[OK]  Confirm Configuration"
 $btnConfirm.Location = New-Object System.Drawing.Point(240, 540)
 $btnConfirm.Size = New-Object System.Drawing.Size(240, 40)
 $btnConfirm.FlatStyle = "Flat"
@@ -386,7 +386,7 @@ $btnConfirm.Font = New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawin
 $btnConfirm.FlatAppearance.BorderSize = 0
 
 $btnConfirm.Add_Click({
-    # ── Collect all selections ────────────────────────────────────
+    # -- Collect all selections ------------------------------------
     $selectedGpus = @()
     for ($i = 0; $i -lt $gpuChecklist.Items.Count; $i++) {
         if ($gpuChecklist.GetItemChecked($i) -and $i -lt $gpuData.Count) {
@@ -438,7 +438,7 @@ $btnConfirm.Add_Click({
 
 $form.Controls.Add($btnConfirm)
 
-# ── Show form ────────────────────────────────────────────────────────
+# -- Show form --------------------------------------------------------
 $result = $form.ShowDialog()
 
 if ($result -ne [System.Windows.Forms.DialogResult]::OK) {

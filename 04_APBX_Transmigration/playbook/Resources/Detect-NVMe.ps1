@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Detect-NVMe.ps1 — NVMe/Storage Enumeration for SymbioseOS Phase 0
+    Detect-NVMe.ps1 - NVMe/Storage Enumeration for SymbioseOS Phase 0
     CONFIG-002: Enumerate NVMe and SATA drives; detect Windows partitions.
 
 .DESCRIPTION
@@ -12,8 +12,8 @@
     - Flags CCD (Continuous Context Drive) candidates
 
 .NOTES
-    Reference: Interactive_Plan.md §IX·1 → hardware.nvme[]
-    Reference: Interactive_Plan.md §XI CONFIG-002 (line 4940)
+    Reference: Interactive_Plan.md SIX.1 - hardware.nvme[]
+    Reference: Interactive_Plan.md SXI CONFIG-002 (line 4940)
 #>
 
 [CmdletBinding()]
@@ -23,7 +23,7 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "[CONFIG-002] Enumerating storage devices..." -ForegroundColor Cyan
 
-# ── Collect physical disks ────────────────────────────────────────────
+# -- Collect physical disks --------------------------------------------
 $physicalDisks = Get-PhysicalDisk | Where-Object { $_.MediaType -ne "Unspecified" -or $_.Size -gt 0 }
 
 $driveList = @()
@@ -85,26 +85,26 @@ foreach ($disk in $physicalDisks) {
     $driveList += $driveInfo
 
     $statusColor = if ($hasWindowsPartitions) { "Yellow" } else { "Green" }
-    $warnTag = if ($hasWindowsPartitions) { " ⚠️ HAS WINDOWS" } else { "" }
-    Write-Host "  [DISK] $($disk.FriendlyName) — ${sizeGb}GB $busType $mediaType$warnTag" -ForegroundColor $statusColor
+    $warnTag = if ($hasWindowsPartitions) { " [!] HAS WINDOWS" } else { "" }
+    Write-Host "  [DISK] $($disk.FriendlyName) - ${sizeGb}GB $busType $mediaType$warnTag" -ForegroundColor $statusColor
     
     if ($mountPoints.Count -gt 0) {
         Write-Host "         Mounts: $($mountPoints -join ', ')" -ForegroundColor DarkGray
     }
 }
 
-# ── Warn about Windows partitions ─────────────────────────────────────
+# -- Warn about Windows partitions -------------------------------------
 $winDrives = $driveList | Where-Object { $_.has_windows_partitions }
 if ($winDrives.Count -gt 0) {
     Write-Host ""
-    Write-Host "  ⚠️  WARNING: $($winDrives.Count) drive(s) contain Windows partitions!" -ForegroundColor Yellow
-    Write-Host "  ⚠️  Selecting these for CCD will make Windows unbootable." -ForegroundColor Yellow
-    Write-Host "  ⚠️  Only select drives that do NOT contain your Windows installation." -ForegroundColor Yellow
+    Write-Host "  [!]  WARNING: $($winDrives.Count) drive(s) contain Windows partitions!" -ForegroundColor Yellow
+    Write-Host "  [!]  Selecting these for CCD will make Windows unbootable." -ForegroundColor Yellow
+    Write-Host "  [!]  Only select drives that do NOT contain your Windows installation." -ForegroundColor Yellow
     Write-Host ""
 }
 
-# ── Write output JSON ─────────────────────────────────────────────────
+# -- Write output JSON -------------------------------------------------
 $outputPath = Join-Path $env:TEMP "symbiose_drives.json"
 $driveList | ConvertTo-Json -Depth 3 | Out-File -FilePath $outputPath -Encoding UTF8 -Force
 
-Write-Host "[CONFIG-002] Found $($driveList.Count) drive(s) — saved to $outputPath" -ForegroundColor Cyan
+Write-Host "[CONFIG-002] Found $($driveList.Count) drive(s) - saved to $outputPath" -ForegroundColor Cyan
