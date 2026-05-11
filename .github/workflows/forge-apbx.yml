@@ -19,10 +19,8 @@ name: "Forge APBX — SymbioseOS Build Pipeline"
 
 on:
   push:
-    branches: [main, "release/*"]
+    branches: [main, "release/*", "v3-production-hardened"]
     tags: ["v*"]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -357,24 +355,26 @@ jobs:
           name: apbx-staged
           path: ${{ env.STAGING_DIR }}/
 
-      - name: Seal .apbx archive
+      - name: Seal .apbx and place in staging folder
         run: |
-          cd ${{ env.STAGING_DIR }}
+          $staging = "${{ env.STAGING_DIR }}"
+          cd $staging
+          # Seal APBX from staging contents
           7z a -t7z -p"${{ env.APBX_PASSWORD }}" -mhe=on -m0=lzma2 -mx=9 `
-            ../../Chaos-SymbioseOS.apbx `
-            ./*
-          # Verify archive integrity
-          7z l -p"${{ env.APBX_PASSWORD }}" ../../Chaos-SymbioseOS.apbx | Select-String "playbook.conf"
-          $sz = (Get-Item ../../Chaos-SymbioseOS.apbx).Length
-          $msg = '[OK] Chaos-SymbioseOS.apbx sealed (' + $sz + ' bytes)'
-          Write-Host $msg
+            Chaos-SymbioseOS.apbx ./*
+          # Verify
+          7z l -p"${{ env.APBX_PASSWORD }}" Chaos-SymbioseOS.apbx | Select-String "playbook.conf"
+          $sz = [math]::Round((Get-Item Chaos-SymbioseOS.apbx).Length / 1MB, 2)
+          Write-Host "[OK] Sealed: Chaos-SymbioseOS.apbx ($sz MB)"
+          Write-Host "[OK] APBX placed inside staging folder"
         shell: powershell
 
-      - name: Upload .apbx artifact
+      # Single artifact: the whole staging folder WITH the .apbx inside
+      - name: Upload release folder
         uses: actions/upload-artifact@v4
         with:
-          name: Chaos-SymbioseOS-apbx
-          path: Chaos-SymbioseOS.apbx
+          name: Chaos-SymbioseOS-release
+          path: ${{ env.STAGING_DIR }}/
           retention-days: 90
 
       # Create GitHub Release only on tag push (e.g., v3.0.0)
@@ -382,7 +382,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: Chaos-SymbioseOS.apbx
+          files: ${{ env.STAGING_DIR }}/Chaos-SymbioseOS.apbx
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

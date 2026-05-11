@@ -52,7 +52,7 @@ actions:
   - !powerShell:
       command: |
         $dest = Join-Path $env:ProgramData 'SymbioseOS\Kernel\BZIMAGE'
-        Copy-Item 'Executables\Kernel\BZIMAGE' $dest -Force
+        Copy-Item 'Kernel\BZIMAGE' $dest -Force
         Write-Host '[PHASE-5] BZIMAGE copied'
       weight: 30
       exeDir: true
@@ -61,9 +61,27 @@ actions:
   - !powerShell:
       command: |
         $dest = Join-Path $env:ProgramData 'SymbioseOS\Kernel\initrd.img'
-        Copy-Item 'Executables\Kernel\initrd.img' $dest -Force
+        Copy-Item 'Kernel\initrd.img' $dest -Force
         Write-Host '[PHASE-5] initrd.img copied'
       weight: 30
+      exeDir: true
+
+  # ── Step 3b: Copy ChaosLoader.exe ────────────────────────────────
+  - !powerShell:
+      command: |
+        $dest = Join-Path $env:ProgramData 'SymbioseOS\ChaosLoader.exe'
+        Copy-Item 'ChaosLoader.exe' $dest -Force
+        Write-Host ('[PHASE-5] ChaosLoader.exe deployed: ' + $dest)
+      weight: 20
+      exeDir: true
+
+  # ── Step 3c: Copy hive_mind binary ───────────────────────────────
+  - !powerShell:
+      command: |
+        $dest = Join-Path $env:ProgramData 'SymbioseOS\Kernel\hive_mind'
+        Copy-Item 'hive_mind' $dest -Force
+        Write-Host ('[PHASE-5] hive_mind deployed: ' + $dest)
+      weight: 20
       exeDir: true
 
   # ── Step 4: Generate ChaosLoader launch config from symbiose_config ─
