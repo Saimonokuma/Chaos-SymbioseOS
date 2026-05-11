@@ -33,8 +33,9 @@ actions:
   - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd\Channels', value: 'Channel6', type: REG_SZ, data: '#neural-jam'}
 
   # Register as Windows service (auto-start, run before ChaosLoader)
+  # sc create fails if service exists; sc config updates existing service
   - !cmd:
-      command: 'sc create SymbioseIRCd type= own start= auto binPath= "%ProgramFiles%\SymbioseOS\IRCd\symbiose_ircd.exe" DisplayName= "SymbioseOS IRC Neural Bus"'
+      command: 'sc create SymbioseIRCd type= own start= auto binPath= "%ProgramFiles%\SymbioseOS\IRCd\symbiose_ircd.exe" DisplayName= "SymbioseOS IRC Neural Bus" & sc config SymbioseIRCd start= auto'
       weight: 30
 
   - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd', value: 'Installed', type: REG_DWORD, data: '1'}
