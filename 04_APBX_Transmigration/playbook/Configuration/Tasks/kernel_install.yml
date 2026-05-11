@@ -21,7 +21,7 @@ actions:
       command: |
         $installPath = Join-Path $env:ProgramData 'SymbioseOS\Kernel'
         $dest = Join-Path $installPath 'BZIMAGE'
-        Copy-Item 'Executables\Kernel\BZIMAGE' $dest -Force
+        Copy-Item 'Kernel\BZIMAGE' $dest -Force
         $sz = [math]::Round((Get-Item $dest).Length / 1MB, 1)
         Write-Host ('[KERNEL] Installed BZIMAGE: ' + $sz + ' MB')
       weight: 30
@@ -32,7 +32,7 @@ actions:
       command: |
         $installPath = Join-Path $env:ProgramData 'SymbioseOS\Kernel'
         $dest = Join-Path $installPath 'initrd.img'
-        Copy-Item 'Executables\Kernel\initrd.img' $dest -Force
+        Copy-Item 'Kernel\initrd.img' $dest -Force
         $sz = [math]::Round((Get-Item $dest).Length / 1KB, 1)
         Write-Host ('[KERNEL] Installed initrd.img: ' + $sz + ' KB')
       weight: 30

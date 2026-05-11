@@ -13,7 +13,7 @@ actions:
   - !powerShell:
     command: |
       & (Join-Path $PWD 'Resources\Detect-GPU.ps1')
-    exeDir: true
+    exeDir: false
     wait: true
 
   # Step 2: Detect Storage (CONFIG-002)
@@ -21,7 +21,7 @@ actions:
   - !powerShell:
     command: |
       & (Join-Path $PWD 'Resources\Detect-NVMe.ps1')
-    exeDir: true
+    exeDir: false
     wait: true
 
   # Step 3: Detect System Resources (CONFIG-003/004/005)
@@ -29,7 +29,7 @@ actions:
   - !powerShell:
     command: |
       & (Join-Path $PWD 'Resources\Detect-System.ps1')
-    exeDir: true
+    exeDir: false
     wait: true
 
   # Step 4: Launch WinForms Configurator (CONFIG-003-014)
@@ -37,7 +37,7 @@ actions:
   - !powerShell:
     command: |
       & (Join-Path $PWD 'Resources\Symbiose-Configurator.ps1')
-    exeDir: true
+    exeDir: false
     wait: true
 
   # Step 5: Assemble Final Config JSON (CONFIG-009)
@@ -45,5 +45,5 @@ actions:
   - !powerShell:
     command: |
       & (Join-Path $PWD 'Resources\Write-SymbioseConfig.ps1')
-    exeDir: true
+    exeDir: false
     wait: true
