@@ -12,8 +12,9 @@ title: Deploy IRC Neural Bus
 actions:
   # Install symbiose_ircd.exe to SymbioseOS program directory
   - !cmd:
-      command: 'mkdir "%ProgramFiles%\SymbioseOS\IRCd" 2>NUL & copy /Y "Executables\symbiose_ircd.exe" "%ProgramFiles%\SymbioseOS\IRCd\"'
+      command: 'mkdir "%ProgramFiles%\SymbioseOS\IRCd" 2>NUL & copy /Y "symbiose_ircd.exe" "%ProgramFiles%\SymbioseOS\IRCd\"'
       weight: 20
+      exeDir: true
 
   # Configure IRC Neural Bus — 7 channels, SHM ring, localhost-only binding
   - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd', value: 'BindAddress', type: REG_SZ, data: '127.0.0.1'}

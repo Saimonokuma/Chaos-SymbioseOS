@@ -17,8 +17,9 @@ actions:
 
   # Copy SymbioseTerminal.exe from CI-built artifacts
   - !cmd:
-      command: 'copy /Y "Executables\SymbioseTerminal.exe" "%ProgramFiles%\SymbioseOS\Terminal\"'
+      command: 'copy /Y "SymbioseTerminal.exe" "%ProgramFiles%\SymbioseOS\Terminal\"'
       weight: 20
+      exeDir: true
 
   # Create Start Menu shortcut
   - !powerShell:

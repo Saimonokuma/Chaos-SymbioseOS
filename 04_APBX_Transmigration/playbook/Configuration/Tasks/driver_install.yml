@@ -11,23 +11,27 @@ title: Install KMDF Hypervisor Driver
 actions:
   # Copy driver files to System32\drivers
   - !cmd:
-      command: 'copy /Y "Executables\Drivers\symbiose_bridge.sys" "%SystemRoot%\System32\drivers\"'
+      command: 'copy /Y "Drivers\symbiose_bridge.sys" "%SystemRoot%\System32\drivers\"'
       weight: 20
+      exeDir: true
 
   - !cmd:
-      command: 'copy /Y "Executables\Drivers\SymbioseNull.sys" "%SystemRoot%\System32\drivers\"'
+      command: 'copy /Y "Drivers\SymbioseNull.sys" "%SystemRoot%\System32\drivers\"'
       weight: 20
+      exeDir: true
 
   # Copy the test-signed catalog for driver verification
   - !cmd:
-      command: 'copy /Y "Executables\Drivers\symbiose_bridge.cat" "%SystemRoot%\System32\CatRoot\{F750E6C3-38EE-11D1-85E5-00C04FC295EE}\"'
+      command: 'copy /Y "Drivers\symbiose_bridge.cat" "%SystemRoot%\System32\CatRoot\{F750E6C3-38EE-11D1-85E5-00C04FC295EE}\"'
       weight: 10
+      exeDir: true
 
   # Install SymbioseNull filter using the INF (BRIDGE-011)
   # UpperFilters AddReg flag 0x00010008 = APPEND (never replace existing filters)
   - !cmd:
-      command: 'pnputil /add-driver "Executables\Drivers\SymbioseNull.inf" /install'
+      command: 'pnputil /add-driver "Drivers\SymbioseNull.inf" /install'
       weight: 30
+      exeDir: true
 
   # Create symbiose_bridge service entry
   # Type 1 = kernel driver, Start 3 = demand start, ErrorControl 1 = normal
