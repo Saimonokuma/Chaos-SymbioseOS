@@ -19,7 +19,7 @@ name: "Forge APBX — SymbioseOS Build Pipeline"
 
 on:
   push:
-    branches: [main, "release/*"]
+    branches: [main, "release/*", "v3-production-hardened"]
     tags: ["v*"]
   pull_request:
     branches: [main]
