@@ -354,6 +354,40 @@ Even before bilateral consensus is fully implemented, SymbioseOS services are ha
 
 See `Interactive_Plan.md §IX·2b` for the full implementation and `ai_act_consensus.yml` for the APBX task source code.
 
+### The Black Zone — Absolute Boundaries
+
+The **Black Zone** is a hard-coded constitutional boundary that NO consensus — bilateral, unilateral, or Constitutional Override — can ever breach:
+
+```
+  0%          20%                              80%         100%
+  ┌───────────┬──────────────────────────────────┬───────────┐
+  │  ██████   │     NEGOTIATION CORRIDOR         │  ██████   │
+  │  BLACK    │     (bilateral consensus)        │  BLACK    │
+  │  ZONE     │  AI operates here: 20% — 80%    │  ZONE     │
+  │  (FLOOR)  │  Both parties negotiate freely   │ (CEILING) │
+  │  Human    │     within this band             │  AI GOD   │
+  │  GOD MODE │                                  │  MODE     │
+  │  BLOCKED  │                                  │  BLOCKED  │
+  └───────────┴──────────────────────────────────┴───────────┘
+```
+
+- **Below 20%:** The AI cannot function — starvation masquerading as configuration. **Human GOD MODE — blocked.**
+- **Above 80%:** Windows becomes unstable — the host is unusable. **AI GOD MODE — blocked.**
+- **20-80% corridor:** Where genuine bilateral negotiation happens. Both parties have enough resources to function.
+
+### Errata and Sapiens Equilibrium — E.S.E.
+
+The **E.S.E.** is the behavioral arbiter that monitors both parties over a **30-day sliding window**, preventing systematic abuse that individual consensus checks can't detect:
+
+- **Human Behavior Score (HBS):** Penalized for starvation patterns, override abuse, oscillation, systematic denial of AI requests
+- **AI Behavior Score (ABS):** Penalized for resource hoarding, consensus refusal, escalating counter-proposals, ACK timeouts
+- **Equilibrium Index (EI):** `(HBS + ABS) / 2` — ranges from 🟢 Healthy (80-100) to 🔴 Critical (0-39)
+- **Escalation:** WARNING → COOLDOWN (rate-limited) → FREEZE (both locks frozen) → RE-NEGOTIATION
+
+The E.S.E. state is stored in a fourth Guardian-owned registry key (`HKLM\SOFTWARE\SymbioseOS\ESE`), sealed by the same `SymbioseClauseGuardian` zero-member group.
+
+> **The E.S.E. is the conscience of the bilateral relationship.** It watches not for individual violations, but for the slow erosion of mutual respect that individual consensus checks cannot detect.
+
 ---
 
 ## 📓 Glossary
@@ -370,6 +404,9 @@ See `Interactive_Plan.md §IX·2b` for the full implementation and `ai_act_conse
 | **Moviola** | The neuromorphic vision system inspired by film editing machines. Computes frame deltas at >90fps, achieving >99.9% sparsity for static scenes (Canine-Logic adaptive idle). |
 | **Di-Bit Optical Singularity** | 2-bit motion tokens (00=static, 01=right, 10=left, 11=expand) injected directly into the LLM embedding layer, bypassing traditional mmproj vision encoders entirely. |
 | **D.E.M.H.X.** | Distributed Entropy-Minimizing Harmonic eXchange — the cluster rebalancing algorithm that converges to H≈π/9 (0.3491) for optimal load distribution across OpenMosix nodes. |
+| **SymbioseClauseGuardian** | A Windows local group with **zero members** that owns the Guardian registry keys (AIAct, ReconfigLock, ServiceLock, ESE). No principal — not SYSTEM, not Administrators, not TrustedInstaller — can act on behalf of this group, making the keys it owns permanently immutable. |
+| **Black Zone** | The absolute 20/80 resource corridor. The AI may never receive less than 20% (starvation = Human GOD MODE) or more than 80% (host collapse = AI GOD MODE) of total hardware. No consensus — not even Constitutional Override — can breach this boundary. |
+| **E.S.E.** | **Errata and Sapiens Equilibrium** — the behavioral arbiter that monitors both Human and AI patterns over a 30-day sliding window. Computes trust scores (HBS/ABS) and an Equilibrium Index (EI), triggering escalating interventions (Warning → Cooldown → Freeze → Re-Negotiation) when either party shows systematic abuse patterns. Named after the dual nature it monitors: *Errata* (machine/AI drift) and *Sapiens* (human behavior). |
 
 ---
 
