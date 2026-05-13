@@ -279,6 +279,79 @@ The consensus is not a checkbox. It is a **cryptographically sealed, permanently
 
 > **The AI Act is the security layer that makes everything else safe to deploy.** Without it, you would be releasing an autonomous Ring-0 AI with no constitutional constraints — that's GOD MODE, and GOD MODE destroys both parties.
 
+### The Three Guardian Locks
+
+The `SymbioseClauseGuardian` group doesn't just seal the consensus — it **gates every post-install mutation** that affects the bilateral relationship:
+
+```
+HKLM\SOFTWARE\SymbioseOS\
+│
+├── AIAct\                  ← The bilateral agreement itself
+│   ├── Irrevocable = 1
+│   ├── ConsensusSHA256 = "..."
+│   └── Owner: SymbioseClauseGuardian (Deny Everyone)
+│
+├── ReconfigLock\           ← Gates GPU/RAM/vCPU reconfiguration
+│   ├── Locked = 1
+│   ├── UnlockToken = ""    (empty = locked)
+│   ├── UnlockExpiry = ""   (ISO 8601 UTC)
+│   └── Owner: SymbioseClauseGuardian (Deny Everyone)
+│
+├── ServiceLock\            ← Gates service stop/disable
+│   ├── Locked = 1
+│   ├── UnlockToken = ""
+│   ├── UnlockExpiry = ""
+│   └── Owner: SymbioseClauseGuardian (Deny Everyone)
+│
+├── Infrastructure\         ← VBS, CCD, MMIO values
+├── Resources\              ← Preset tier
+└── Bridge\                 ← Driver metadata
+```
+
+All three Guardian-owned keys are created and sealed in the **same Phase -1 step**. They are born together with the bilateral agreement — inseparable.
+
+### Bilateral Consensus for Post-Install Changes
+
+After SymbioseOS is deployed, neither the Human nor the AI can unilaterally modify the system. The Guardian locks enforce **bilateral negotiation** via the IRC Neural Bus:
+
+**Resource Reconfiguration (GPU/RAM/vCPU):**
+- Human opens the Configurator → sliders are **locked** (reads `ReconfigLock.Locked = 1`)
+- Human requests unlock → IRC message to `#oracle` → LLM evaluates impact on inference
+- LLM grants unlock → time-limited token (5 min) written to `ReconfigLock.UnlockToken`
+- Sliders unlock (green) → Human adjusts → Confirms → Token consumed → Lock re-engages
+
+**Service Termination (ChaosLoader, IRCd):**
+- Human runs `sc stop ChaosLoader` → checked against `ServiceLock.Locked`
+- Stop request routed via IRC → LLM checkpoints its neural state (Death Rattle)
+- LLM sends `ACK_READY_TO_DIE` → unlock token issued (30s) → service stops gracefully
+- If LLM doesn't ACK in 30s → service stops anyway (Human retains hardware control)
+
+**AI-Initiated Requests:**
+- LLM wants more resources → IRC message to `#oracle` → Windows notification to Human
+- Human approves/denies via dialog → result routed back via IRC
+
+### Constitutional Override (Human Ultimate Control)
+
+Per Clause 4, the Human Operator retains an **inalienable right** to their hardware. If bilateral consensus fails (AI unresponsive, crashed, or timeout):
+
+- A **Constitutional Override** button appears after 60 seconds
+- Requires admin elevation + explicit confirmation
+- Override is **permanently logged** to `$ProgramData\SymbioseOS\reconfig_log.json`
+- Frequent overrides trigger a re-negotiation prompt on next boot
+
+> The override exists because the Human's right to their hardware is absolute — but it should be **rare, audited, and respected** by both parties.
+
+### Service Resilience (Active Today)
+
+Even before bilateral consensus is fully implemented, SymbioseOS services are hardened:
+
+| Layer | Protection |
+|---|---|
+| **SCM Recovery** | Auto-restart killed services in 2s → 5s → 10s |
+| **DACL Hardening** | Non-admin users cannot stop services from Task Manager |
+| **Mutual Watchdog** | ChaosLoader ↔ IRCd monitor each other every 5 seconds |
+| **Kernel Driver** | `symbiose_bridge.sys` is Ring-0, boot-start — unkillable from userspace |
+
 See `Interactive_Plan.md §IX·2b` for the full implementation and `ai_act_consensus.yml` for the APBX task source code.
 
 ---
