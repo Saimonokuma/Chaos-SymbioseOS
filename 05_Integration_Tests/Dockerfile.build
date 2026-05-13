@@ -116,6 +116,7 @@ RUN echo "=== BUILD 3.5: llama-server (guest, static) ===" && \
         -DGGML_STATIC=ON \
         -DLLAMA_NATIVE=OFF \
         -DLLAMA_CURL=OFF \
+        -DGGML_OPENMP=OFF \
         -DGGML_VULKAN=OFF \
         -DGGML_CUDA=OFF \
         -DBUILD_SHARED_LIBS=OFF && \
