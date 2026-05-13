@@ -110,8 +110,9 @@ RUN echo "=== BUILD 3.5: llama-server (guest, static) ===" && \
     cd /llama-src && \
     cmake -B build \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_C_COMPILER=musl-gcc \
+        -DCMAKE_C_COMPILER=gcc \
         -DCMAKE_CXX_COMPILER=g++ \
+        -DCMAKE_EXE_LINKER_FLAGS="-static" \
         -DGGML_STATIC=ON \
         -DLLAMA_NATIVE=OFF \
         -DLLAMA_CURL=OFF \
