@@ -193,7 +193,7 @@ jobs:
           Move-Item "symbiose_bridge.cat" "02_Symbiose_Bridge\inf\symbiose_bridge.cat" -Force
 
           # Sign the catalog
-          & $st sign /fd sha256 /ph /sha1 $tp /sm "02_Symbiose_Bridge\inf\symbiose_bridge.cat"
+          & $st sign /fd sha256 /ph /sha1 $tp "02_Symbiose_Bridge\inf\symbiose_bridge.cat"
           if ($LASTEXITCODE -ne 0) { throw "Failed to sign symbiose_bridge.cat" }
           Write-Host "[OK] symbiose_bridge.cat generated and signed"
         shell: powershell
