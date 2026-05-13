@@ -1,13 +1,14 @@
 # ══════════════════════════════════════════════════════════════════════════
 # Dockerfile.build — Multi-target SymbioseOS Builder
 #
-# Builds 6 targets in a single container:
+# Builds 7 targets in a single container:
 #   1. x86_64 BZIMAGE (Linux kernel v6.12)
 #   2. hive_mind (musl static, guest PID 1)
 #   3. symbiose_ircd (musl static, guest)
+#   3.5 llama-server (musl static, guest LLM inference engine)
 #   4. ChaosLoader.exe (MinGW-w64 cross-compile)
 #   5. symbiose_ircd.exe (MinGW-w64 cross-compile)
-#   6. initrd.img (cpio+gzip)
+#   6. initrd.img (cpio+gzip — includes hive_mind + ircd + llama-server)
 #
 # All outputs land in /output/
 # ══════════════════════════════════════════════════════════════════════════
@@ -97,6 +98,31 @@ RUN echo "=== BUILD 3: symbiose_ircd (guest) ===" && \
     echo "=== symbiose_ircd (guest) BUILD COMPLETE ==="
 
 # ══════════════════════════════════════════════════════════════════════════
+# BUILD 3.5: llama-server (guest LLM inference engine, static)
+# Per §XVII·3 Step 6: hive_mind PID 1 forks llama-server inside the guest.
+# Built CPU-only here; GPU passthrough (DDA) is handled by the host driver.
+# The guest accesses GPU via MMIO after DDA attachment.
+# ══════════════════════════════════════════════════════════════════════════
+RUN echo "=== BUILD 3.5: llama-server (guest, static) ===" && \
+    git clone --depth=1 --branch b5200 \
+        https://github.com/ggml-org/llama.cpp.git \
+        /llama-src && \
+    cd /llama-src && \
+    cmake -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_C_COMPILER=musl-gcc \
+        -DCMAKE_CXX_COMPILER=g++ \
+        -DGGML_STATIC=ON \
+        -DLLAMA_NATIVE=OFF \
+        -DGGML_VULKAN=OFF \
+        -DGGML_CUDA=OFF \
+        -DBUILD_SHARED_LIBS=OFF && \
+    cmake --build build -j$(nproc) --target llama-server && \
+    cp build/bin/llama-server /output/llama-server && \
+    file /output/llama-server && \
+    echo "=== llama-server BUILD COMPLETE ==="
+
+# ══════════════════════════════════════════════════════════════════════════
 # BUILD 4: ChaosLoader.exe (MinGW-w64 cross-compile)
 # ══════════════════════════════════════════════════════════════════════════
 RUN echo "=== BUILD 4: ChaosLoader.exe ===" && \
@@ -133,6 +159,7 @@ RUN echo "=== BUILD 6: initrd.img (§XVII·1 compliant) ===" && \
             /initrd/dev /initrd/etc/symbiose /initrd/tmp /initrd/lib && \
     cp /output/hive_mind /initrd/sbin/hive_mind && \
     cp /output/symbiose_ircd /initrd/sbin/symbiose_ircd && \
+    cp /output/llama-server /initrd/sbin/llama-server && \
     chmod +x /initrd/sbin/* && \
     ln -sf /sbin/hive_mind /initrd/init && \
     echo '{"model_path":"","format":"SafeTensors","multimodal":false,"port":8080}' \
@@ -154,16 +181,20 @@ RUN echo "=== BINARY VERIFICATION ===" && \
     echo "" && \
     echo "  hive_mind: $(stat -c%s /output/hive_mind) bytes" && \
     echo "  symbiose_ircd: $(stat -c%s /output/symbiose_ircd) bytes" && \
+    echo "  llama-server: $(stat -c%s /output/llama-server) bytes" && \
     echo "  ChaosLoader.exe: $(stat -c%s /output/ChaosLoader.exe) bytes" && \
     echo "  symbiose_ircd.exe: $(stat -c%s /output/symbiose_ircd.exe) bytes" && \
     echo "  BZIMAGE: $(stat -c%s /output/BZIMAGE) bytes" && \
     echo "  initrd.img: $(stat -c%s /output/initrd.img) bytes" && \
     echo "" && \
+    echo "── initrd contents (verify llama-server present) ──" && \
+    gzip -dc /output/initrd.img | cpio -t 2>/dev/null | grep -E 'llama|hive|ircd' && \
+    echo "" && \
     echo "── hive_mind module strings ──" && \
     strings /output/hive_mind | grep -E 'modality|moviola|tensor|rdma|hive_mind|Step [0-9]' | head -20 && \
     echo "" && \
     echo "══════════════════════════════════════════════════════════" && \
-    echo "  All 6 targets built and verified" && \
+    echo "  All 7 targets built and verified" && \
     echo "══════════════════════════════════════════════════════════"
 
 # ── Final verification ───────────────────────────────────────────────────

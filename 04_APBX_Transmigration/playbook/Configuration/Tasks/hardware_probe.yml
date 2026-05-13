@@ -1,0 +1,170 @@
+# ══════════════════════════════════════════════════════════════════════════
+# hardware_probe.yml — Phase 0c: Auto-Detect Hardware for LLM Configuration
+#
+# Probes the user's CPU, GPU, and RAM at install time and writes an
+# optimal llama-server configuration. This ensures the LLM runs
+# autonomously inside SymbioseOS without manual tuning.
+#
+# Writes: C:\ProgramData\SymbioseOS\hardware_profile.json
+# Consumed by: hive_mind PID 1 → /etc/symbiose/model.conf (baked into initrd)
+#
+# Reference: Interactive_Plan.md §IX·2, README §1 (Autonomy)
+# Runs before: llm_deploy.yml, resource_allocation.yml
+# ══════════════════════════════════════════════════════════════════════════
+title: Auto-Detect Hardware for LLM Configuration
+actions:
+
+  # ── Step 1: Full hardware probe ─────────────────────────────────────
+  - !powerShell:
+    command: |
+      Write-Host '╔══════════════════════════════════════════════════════╗'
+      Write-Host '║  SYMBIOSE OS — HARDWARE PROBE FOR LLM ENGINE       ║'
+      Write-Host '╚══════════════════════════════════════════════════════╝'
+      Write-Host ''
+
+      # ── CPU ──────────────────────────────────────────────────────────
+      $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+      $cpuName = $cpu.Name.Trim()
+      $cpuCores = $cpu.NumberOfCores
+      $cpuThreads = $cpu.NumberOfLogicalProcessors
+      # Check AVX support via CPU caption (rough heuristic)
+      $avx2 = $false
+      try {
+          $cpuInfo = wmic cpu get Caption /value 2>$null | Out-String
+          if ($cpuInfo -match 'Family 6') { $avx2 = $true }  # Modern Intel/AMD
+      } catch {}
+      Write-Host ('[CPU] ' + $cpuName)
+      Write-Host ('      Cores: ' + $cpuCores + ' / Threads: ' + $cpuThreads)
+      Write-Host ('      AVX2: ' + $(if ($avx2) { 'likely' } else { 'unknown' }))
+
+      # ── RAM ──────────────────────────────────────────────────────────
+      $ram = Get-CimInstance Win32_ComputerSystem
+      $totalRamGB = [math]::Round($ram.TotalPhysicalMemory / 1GB, 1)
+      $freeRam = Get-CimInstance Win32_OperatingSystem
+      $freeRamGB = [math]::Round($freeRam.FreePhysicalMemory / 1MB, 1)
+      Write-Host ('[RAM] Total: ' + $totalRamGB + ' GB / Free: ' + $freeRamGB + ' GB')
+
+      # ── GPU(s) ───────────────────────────────────────────────────────
+      $gpus = Get-CimInstance Win32_VideoController | Where-Object { $_.AdapterRAM -gt 0 }
+      $gpuList = @()
+      foreach ($g in $gpus) {
+          $vramGB = [math]::Round($g.AdapterRAM / 1GB, 1)
+          $vendor = 'unknown'
+          if ($g.Name -match 'NVIDIA') { $vendor = 'nvidia' }
+          elseif ($g.Name -match 'AMD|Radeon') { $vendor = 'amd' }
+          elseif ($g.Name -match 'Intel') { $vendor = 'intel' }
+          $gpuList += @{
+              name = $g.Name.Trim()
+              vendor = $vendor
+              vram_gb = $vramGB
+              driver_version = $g.DriverVersion
+          }
+          Write-Host ('[GPU] ' + $g.Name.Trim() + ' — ' + $vramGB + ' GB VRAM (' + $vendor + ')')
+      }
+      if ($gpuList.Count -eq 0) {
+          Write-Host '[GPU] No discrete GPU detected — CPU-only mode'
+          $gpuList += @{ name = 'CPU-only'; vendor = 'none'; vram_gb = 0; driver_version = '' }
+      }
+
+      # ── Compute optimal LLM configuration ───────────────────────────
+      $primaryGPU = $gpuList[0]
+      $vram = $primaryGPU.vram_gb
+
+      # Backend selection
+      $backend = 'cpu'
+      if ($primaryGPU.vendor -eq 'nvidia') { $backend = 'cuda' }
+      elseif ($primaryGPU.vendor -eq 'amd') { $backend = 'vulkan' }
+      elseif ($primaryGPU.vendor -eq 'intel') { $backend = 'vulkan' }
+
+      # GPU layers: full offload if enough VRAM, partial if limited
+      $gpuLayers = 0
+      if ($vram -ge 12) { $gpuLayers = 999 }
+      elseif ($vram -ge 8) { $gpuLayers = 40 }
+      elseif ($vram -ge 4) { $gpuLayers = 20 }
+      elseif ($vram -ge 2) { $gpuLayers = 10 }
+
+      # Context size based on available RAM
+      $ctxSize = 2048
+      if ($totalRamGB -ge 64) { $ctxSize = 131072 }
+      elseif ($totalRamGB -ge 32) { $ctxSize = 65536 }
+      elseif ($totalRamGB -ge 16) { $ctxSize = 16384 }
+      elseif ($totalRamGB -ge 8) { $ctxSize = 4096 }
+
+      # CPU threads for inference (half of total, leave rest for host)
+      $cpuInfThreads = [math]::Max(2, [math]::Floor($cpuThreads / 2))
+
+      # Batch size
+      $batchSize = 512
+      if ($totalRamGB -ge 32 -and $vram -ge 8) { $batchSize = 2048 }
+      elseif ($totalRamGB -ge 16) { $batchSize = 1024 }
+
+      Write-Host ''
+      Write-Host '── Optimal LLM Configuration ──'
+      Write-Host ('   Backend:      ' + $backend)
+      Write-Host ('   GPU layers:   ' + $gpuLayers)
+      Write-Host ('   Context:      ' + $ctxSize)
+      Write-Host ('   CPU threads:  ' + $cpuInfThreads)
+      Write-Host ('   Batch size:   ' + $batchSize)
+
+      # ── Write hardware_profile.json ─────────────────────────────────
+      $profile = @{
+          probe_timestamp = (Get-Date -Format 'o')
+          cpu = @{
+              name = $cpuName
+              cores = $cpuCores
+              threads = $cpuThreads
+              avx2_likely = $avx2
+          }
+          ram = @{
+              total_gb = $totalRamGB
+              free_gb = $freeRamGB
+          }
+          gpu = $gpuList
+          llama_config = @{
+              backend = $backend
+              n_gpu_layers = $gpuLayers
+              ctx_size = $ctxSize
+              n_threads = $cpuInfThreads
+              batch_size = $batchSize
+              host = '127.0.0.1'
+              port = 8080
+              f32_precision = $true
+          }
+      }
+
+      $configDir = Join-Path $env:ProgramData 'SymbioseOS'
+      if (-not (Test-Path $configDir)) {
+          New-Item -Path $configDir -ItemType Directory -Force | Out-Null
+      }
+      $outFile = Join-Path $configDir 'hardware_profile.json'
+      $profile | ConvertTo-Json -Depth 4 | Out-File $outFile -Encoding UTF8 -Force
+      Write-Host ''
+      Write-Host ('[HW-PROBE] Profile written to: ' + $outFile)
+      Write-Host '[HW-PROBE] The LLM will use these settings autonomously.'
+    wait: true
+    weight: 30
+
+  # ── Step 2: Store in registry for ChaosLoader consumption ───────────
+  - !powerShell:
+    command: |
+      $profilePath = Join-Path $env:ProgramData 'SymbioseOS\hardware_profile.json'
+      if (Test-Path $profilePath) {
+          $p = Get-Content $profilePath -Raw | ConvertFrom-Json
+          $regPath = 'HKLM:\SOFTWARE\SymbioseOS\Hardware'
+          if (-not (Test-Path $regPath)) {
+              New-Item -Path $regPath -Force | Out-Null
+          }
+          Set-ItemProperty -Path $regPath -Name 'CPU_Name' -Value $p.cpu.name -Type String
+          Set-ItemProperty -Path $regPath -Name 'CPU_Threads' -Value $p.cpu.threads -Type DWord
+          Set-ItemProperty -Path $regPath -Name 'RAM_GB' -Value ([int]$p.ram.total_gb) -Type DWord
+          Set-ItemProperty -Path $regPath -Name 'GPU_Name' -Value $p.gpu[0].name -Type String
+          Set-ItemProperty -Path $regPath -Name 'GPU_Vendor' -Value $p.gpu[0].vendor -Type String
+          Set-ItemProperty -Path $regPath -Name 'GPU_VRAM_GB' -Value ([int]$p.gpu[0].vram_gb) -Type DWord
+          Set-ItemProperty -Path $regPath -Name 'LLM_Backend' -Value $p.llama_config.backend -Type String
+          Set-ItemProperty -Path $regPath -Name 'LLM_GPULayers' -Value $p.llama_config.n_gpu_layers -Type DWord
+          Set-ItemProperty -Path $regPath -Name 'LLM_CtxSize' -Value $p.llama_config.ctx_size -Type DWord
+          Set-ItemProperty -Path $regPath -Name 'Probed' -Value 1 -Type DWord
+          Write-Host '[HW-PROBE] Registry updated.'
+      }
+    wait: true
+    weight: 10

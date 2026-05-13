@@ -45,7 +45,7 @@ jobs:
   #   6. initrd.img     (cpio+gzip newc archive)
   # ═══════════════════════════════════════════════════════════════════════════
   build-docker:
-    name: "CI-001 · Docker Build (6 binaries)"
+    name: "CI-001 · Docker Build (7 binaries)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +53,7 @@ jobs:
       - name: Build all targets via Dockerfile.build
         run: |
           echo "══════════════════════════════════════════════════"
-          echo "  Building 6 binaries via Dockerfile.build"
+          echo "  Building 7 binaries via Dockerfile.build"
           echo "══════════════════════════════════════════════════"
           docker build \
             -f 05_Integration_Tests/Dockerfile.build \
@@ -76,8 +76,8 @@ jobs:
           echo ""
           file build/*
 
-          # Verify all 6 outputs exist
-          for f in BZIMAGE hive_mind symbiose_ircd ChaosLoader.exe symbiose_ircd.exe initrd.img; do
+          # Verify all 7 outputs exist
+          for f in BZIMAGE hive_mind symbiose_ircd llama-server ChaosLoader.exe symbiose_ircd.exe initrd.img; do
             if [ ! -f "build/$f" ]; then
               echo "MISSING: build/$f"
               exit 1
@@ -85,7 +85,7 @@ jobs:
             echo "[OK] build/$f ($(stat -c%s "build/$f") bytes)"
           done
           echo ""
-          echo "All 6 binaries built successfully."
+          echo "All 7 binaries built successfully."
 
       - uses: actions/upload-artifact@v4
         with:
@@ -94,6 +94,7 @@ jobs:
             build/BZIMAGE
             build/hive_mind
             build/symbiose_ircd
+            build/llama-server
             build/ChaosLoader.exe
             build/symbiose_ircd.exe
             build/initrd.img
