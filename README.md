@@ -115,19 +115,21 @@ Chaos-SymbioseOS/
 
 **108 PASS / 0 WARN / 0 FAIL** across all 12 modules, verified 2026-05-09.
 
-### 9 Production Binaries
+### 10 Production Binaries
 
 | # | Binary | Size | Build Method |
 |:-:|--------|------|-------------|
 | 1 | `BZIMAGE` | 7.9 MB | Docker — Linux kernel 6.12 x86_64 |
 | 2 | `hive_mind` | 98.8 KB | Docker — musl-static (PID 1) |
 | 3 | `symbiose_ircd` | 38 KB | Docker — musl-static (Linux guest) |
-| 4 | `initrd.img` | 51.8 KB | Docker — cpio+gzip initramfs |
-| 5 | `ChaosLoader.exe` | 484.8 KB | Docker — MinGW-w64 cross-compile |
-| 6 | `symbiose_ircd.exe` | 293 KB | Docker — MinGW-w64 cross-compile |
-| 7 | `SymbioseTerminal.exe` | 7.8 MB | Native Rust 1.95.0 + MSVC |
-| 8 | `symbiose_bridge.sys` | 21 KB | Native MSVC + WDK NuGet |
-| 9 | `symbiose_null.sys` | 3.5 KB | Native MSVC + WDK NuGet |
+| 4 | `llama-server` | ~50 MB | Docker — musl-static (LLM inference engine, guest) |
+| 5 | `initrd.img` | ~50 MB | Docker — cpio+gzip (hive_mind + ircd + llama-server) |
+| 6 | `ChaosLoader.exe` | 484.8 KB | Docker — MinGW-w64 cross-compile |
+| 7 | `symbiose_ircd.exe` | 293 KB | Docker — MinGW-w64 cross-compile |
+| 8 | `SymbioseTerminal.exe` | 7.8 MB | Native Rust 1.95.0 + MSVC |
+| 9 | `symbiose_bridge.sys` | 21 KB | Native MSVC + WDK NuGet |
+| 10 | `symbiose_null.sys` | 3.5 KB | Native MSVC + WDK NuGet |
+
 
 ### Build Errata
 
