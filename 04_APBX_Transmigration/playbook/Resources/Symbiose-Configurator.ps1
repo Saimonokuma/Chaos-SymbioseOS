@@ -149,6 +149,26 @@ foreach ($drv in $driveData) {
 $tab1.Controls.Add($driveChecklist)
 $y += 100
 
+# Override checkbox for drives with Windows partitions
+$chkAllowWinDrives = New-Object System.Windows.Forms.CheckBox
+$chkAllowWinDrives.Text = "Allow drives with Windows partitions (SymbioseNull does NOT format — filter only)"
+$chkAllowWinDrives.Location = New-Object System.Drawing.Point(15, $y)
+$chkAllowWinDrives.Size = New-Object System.Drawing.Size(640, 20)
+$chkAllowWinDrives.ForeColor = $warnColor
+$chkAllowWinDrives.Font = $fontSmall
+$chkAllowWinDrives.Checked = $false
+$tab1.Controls.Add($chkAllowWinDrives)
+$y += 24
+
+$lblWinWarn = New-Object System.Windows.Forms.Label
+$lblWinWarn.Text = "Safe: the filter controls I/O access only. Your data stays intact."
+$lblWinWarn.Location = New-Object System.Drawing.Point(35, $y)
+$lblWinWarn.Size = New-Object System.Drawing.Size(620, 16)
+$lblWinWarn.ForeColor = $fgSecondary
+$lblWinWarn.Font = $fontSmall
+$tab1.Controls.Add($lblWinWarn)
+$y += 22
+
 $lblMmio = New-Object System.Windows.Forms.Label
 $lblMmio.Text = "MMIO Auto-Calculation: (computed from selected GPUs)"
 $lblMmio.Location = New-Object System.Drawing.Point(15, $y)
@@ -412,6 +432,7 @@ $btnConfirm.Add_Click({
     $wizardResult = @{
         gpu_selections    = $selectedGpus
         drive_selections  = $selectedDrives
+        allow_windows_ccd = $chkAllowWinDrives.Checked
         ram_allocation_gb = $ramSlider.Value
         vcpu_count        = $cpuSlider.Value
         numa_pinned       = $chkNuma.Checked

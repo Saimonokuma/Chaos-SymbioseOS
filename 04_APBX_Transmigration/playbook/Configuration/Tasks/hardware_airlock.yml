@@ -114,6 +114,15 @@ actions:
           Write-Host '[AIRLOCK] No CCD drives selected - skipping NVMe isolation' -ForegroundColor Yellow
           exit 0
       }
+
+      # Check for Windows CCD override flag
+      $allowWindowsCcd = $false
+      $wizardFile = Join-Path $env:TEMP 'symbiose_wizard.json'
+      if (Test-Path $wizardFile) {
+          $wizard = Get-Content $wizardFile -Raw | ConvertFrom-Json
+          $allowWindowsCcd = $wizard.allow_windows_ccd -eq $true
+      }
+
       Write-Host '[AIRLOCK] =====================================================' -ForegroundColor Cyan
       Write-Host ('[AIRLOCK] NVMe CCD Isolation - ' + $drives.Count + ' drive(s)') -ForegroundColor Cyan
       Write-Host '[AIRLOCK] =====================================================' -ForegroundColor Cyan
@@ -124,8 +133,13 @@ actions:
           Write-Host ('[AIRLOCK]   CCD: ' + $name) -ForegroundColor Green
           Write-Host ('[AIRLOCK]   PCI: ' + $pciPath) -ForegroundColor DarkGray
           if ($drv.has_windows_partitions) {
-              Write-Error ('[AIRLOCK]   REFUSING to isolate ' + $name + ' - contains Windows partitions!')
-              continue
+              if ($allowWindowsCcd) {
+                  Write-Host '[AIRLOCK]   [!] Drive has Windows partitions — OVERRIDE ACTIVE' -ForegroundColor Yellow
+                  Write-Host '[AIRLOCK]   [!] SymbioseNull is a filter only — data stays intact' -ForegroundColor Yellow
+              } else {
+                  Write-Warning ('[AIRLOCK]   Skipping ' + $name + ' — has Windows partitions (override not enabled)')
+                  continue
+              }
           }
           $ccdPaths += $pciPath
       }
@@ -135,6 +149,9 @@ actions:
       }
       Set-ItemProperty -Path $infraPath -Name 'CCD_Paths' -Value ($ccdPaths -join ';') -Type String
       Set-ItemProperty -Path $infraPath -Name 'CCD_Count' -Value $ccdPaths.Count -Type DWord
+      if ($allowWindowsCcd) {
+          Set-ItemProperty -Path $infraPath -Name 'CCD_WindowsOverride' -Value 1 -Type DWord
+      }
       Write-Host ''
       Write-Host '[AIRLOCK] NVMe CCD paths stored for SymbioseNull driver.' -ForegroundColor Green
       Write-Host '[AIRLOCK] Filter will be attached in Phase 3 (driver_install.yml).' -ForegroundColor Green
