@@ -32,10 +32,26 @@ actions:
   - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd\Channels', value: 'Channel5', type: REG_SZ, data: '#checkpoint'}
   - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd\Channels', value: 'Channel6', type: REG_SZ, data: '#neural-jam'}
 
-  # Register as Windows service (auto-start, run before ChaosLoader)
-  # sc create fails if service exists; sc config updates existing service
+  # Remove legacy Windows service if it exists from a previous install
+  # (symbiose_ircd.exe is not a Win32 service — it doesn't implement ServiceMain)
   - !cmd:
-      command: 'sc create SymbioseIRCd type= own start= auto binPath= "%ProgramFiles%\SymbioseOS\IRCd\symbiose_ircd.exe" DisplayName= "SymbioseOS IRC Neural Bus" & sc config SymbioseIRCd start= auto'
-      weight: 30
+      command: 'sc stop SymbioseIRCd 2>NUL & sc delete SymbioseIRCd 2>NUL'
+      weight: 5
+
+  # Register as scheduled task (AtStartup, runs as SYSTEM before ChaosLoader)
+  - !powerShell:
+    command: |
+      $exePath = Join-Path $env:ProgramFiles 'SymbioseOS\IRCd\symbiose_ircd.exe'
+      $taskName = 'SymbioseOS-IRCd'
+      Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+      $action = New-ScheduledTaskAction -Execute $exePath
+      $trigger = New-ScheduledTaskTrigger -AtStartup
+      $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+      $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Seconds 30)
+      Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+      Write-Host ('[IRCd] Scheduled task created: ' + $taskName) -ForegroundColor Green
+      Write-Host '[IRCd]   Runs at boot as SYSTEM (restarts 3x on failure)' -ForegroundColor Green
+    wait: true
+    weight: 30
 
   - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\IRCd', value: 'Installed', type: REG_DWORD, data: '1'}
