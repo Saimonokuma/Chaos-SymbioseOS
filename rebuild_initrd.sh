@@ -37,9 +37,11 @@ fi
 
 cp "${BUILD_DIR}/hive_mind"      "${INITRD_WORK}/sbin/hive_mind"
 cp "${BUILD_DIR}/symbiose_ircd"  "${INITRD_WORK}/usr/bin/symbiose_ircd" 2>/dev/null || true
+cp "${BUILD_DIR}/llama-server"   "${INITRD_WORK}/sbin/llama-server" 2>/dev/null || true
 
 chmod +x "${INITRD_WORK}/sbin/hive_mind"
 chmod +x "${INITRD_WORK}/usr/bin/symbiose_ircd" 2>/dev/null || true
+chmod +x "${INITRD_WORK}/sbin/llama-server" 2>/dev/null || true
 
 # ── Create /init symlink (PID 1 entry point) ────────────────────────────────
 ln -sf /sbin/hive_mind "${INITRD_WORK}/init"

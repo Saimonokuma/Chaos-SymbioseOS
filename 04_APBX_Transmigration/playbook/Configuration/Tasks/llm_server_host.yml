@@ -1,0 +1,105 @@
+# ══════════════════════════════════════════════════════════════════════════
+# llm_server_host.yml — Phase 4c: Host-Side LLM Inference Server
+#
+# Installs llama-server.exe (llama.cpp) as a Windows service that serves
+# the configured GGUF model on 127.0.0.1:8080. This is the host-side
+# fallback for when the VM guest (hive_mind) is not running.
+#
+# The IRCd Neural Bus can then bridge IRC messages to the LLM API.
+#
+# Reference: Interactive_Plan.md §XVII·3 Step 6
+# Depends: llm_deploy.yml (model config), model_selector.yml (GGUF path)
+# ══════════════════════════════════════════════════════════════════════════
+title: Install Host-Side LLM Inference Server
+actions:
+  # ── Step 1: Download llama-server from GitHub releases ────────────────
+  - !powerShell:
+    command: |
+      $llamaDir = Join-Path $env:ProgramData 'SymbioseOS\llama-cpp'
+      if (Test-Path (Join-Path $llamaDir 'llama-server.exe')) {
+          Write-Host '[LLM-HOST] llama-server.exe already present — skipping download'
+          exit 0
+      }
+      New-Item -Path $llamaDir -ItemType Directory -Force | Out-Null
+
+      # Detect GPU vendor for optimal backend
+      $gpu = Get-WmiObject Win32_VideoController | Select-Object -First 1 -ExpandProperty Name
+      $backend = 'vulkan'
+      if ($gpu -match 'NVIDIA') { $backend = 'cuda-12.4' }
+      Write-Host ('[LLM-HOST] GPU: ' + $gpu + ' -> backend: ' + $backend)
+
+      # Get latest release tag
+      $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/ggml-org/llama.cpp/releases/latest'
+      $tag = $release.tag_name
+      $zipName = "llama-$tag-bin-win-$backend-x64.zip"
+      $url = $release.assets | Where-Object { $_.name -eq $zipName } | Select-Object -First 1 -ExpandProperty browser_download_url
+
+      if (-not $url) {
+          Write-Host '[LLM-HOST] WARN: Could not find backend-specific release, falling back to CPU'
+          $zipName = "llama-$tag-bin-win-cpu-x64.zip"
+          $url = $release.assets | Where-Object { $_.name -eq $zipName } | Select-Object -First 1 -ExpandProperty browser_download_url
+      }
+
+      $zipPath = Join-Path $env:TEMP $zipName
+      Write-Host ('[LLM-HOST] Downloading: ' + $url)
+      Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
+      Expand-Archive -Path $zipPath -DestinationPath $llamaDir -Force
+      Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+      Write-Host '[LLM-HOST] llama-server.exe installed.'
+    wait: true
+    timeout: 600
+    weight: 100
+
+  # ── Step 2: Create scheduled task to start llama-server at boot ───────
+  - !powerShell:
+    command: |
+      $llamaExe = Join-Path $env:ProgramData 'SymbioseOS\llama-cpp\llama-server.exe'
+      if (-not (Test-Path $llamaExe)) {
+          Write-Host '[LLM-HOST] ERROR: llama-server.exe not found'
+          exit 1
+      }
+
+      # Read model path from local_model.json
+      $modelConf = Join-Path $env:ProgramData 'SymbioseOS\local_model.json'
+      $modelPath = ''
+      if (Test-Path $modelConf) {
+          $conf = Get-Content $modelConf -Raw | ConvertFrom-Json
+          $modelPath = $conf.model_path
+      }
+      if (-not $modelPath -or -not (Test-Path $modelPath)) {
+          Write-Host '[LLM-HOST] WARN: No model file found — task will be created but may fail at runtime'
+          $modelPath = 'C:\ProgramData\SymbioseOS\Models\model.gguf'
+      }
+
+      # Read llama_config for port and GPU layers
+      $llamaConf = Join-Path $env:ProgramFiles 'SymbioseOS\llama_config.json'
+      $port = '8080'
+      $gpuLayers = '999'
+      $ctxSize = '4096'
+      if (Test-Path $llamaConf) {
+          $lc = Get-Content $llamaConf -Raw | ConvertFrom-Json
+          if ($lc.port) { $port = [string]$lc.port }
+          if ($lc.n_gpu_layers) { $gpuLayers = [string]$lc.n_gpu_layers }
+          if ($lc.ctx_size) { $ctxSize = [string]$lc.ctx_size }
+      }
+
+      $args = "--model `"$modelPath`" --host 127.0.0.1 --port $port --ctx-size $ctxSize --n-gpu-layers $gpuLayers"
+
+      # Create scheduled task (runs at startup as SYSTEM)
+      $taskExists = schtasks /query /tn 'SymbioseOS-LlamaServer' 2>$null
+      if ($taskExists) { schtasks /delete /tn 'SymbioseOS-LlamaServer' /f 2>$null }
+
+      schtasks /create /tn 'SymbioseOS-LlamaServer' `
+          /tr "`"$llamaExe`" $args" `
+          /sc ONSTART /delay '0000:30' `
+          /ru SYSTEM /rl HIGHEST /f
+
+      Write-Host '[LLM-HOST] Scheduled task SymbioseOS-LlamaServer created.'
+      Write-Host ('[LLM-HOST] Args: ' + $args)
+    wait: true
+    weight: 30
+
+  # ── Step 3: Registry metadata ─────────────────────────────────────────
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\LLM', value: 'HostServerInstalled', type: REG_DWORD, data: '1'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\LLM', value: 'Backend', type: REG_SZ, data: 'llama.cpp'}
+  - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\LLM', value: 'Endpoint', type: REG_SZ, data: 'http://127.0.0.1:8080'}
