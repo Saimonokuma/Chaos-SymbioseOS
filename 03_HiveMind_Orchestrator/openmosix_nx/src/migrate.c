@@ -32,10 +32,11 @@
 #include <time.h>
 #include <inttypes.h>     // PRIu64 for VramTotalBytes logging
 
-// ── Global state (defined here, externed in header) ─────────────────────────
+// ── Global state ─────────────────────────────────────────────────────────────
+// g_IrcFd is owned by hive_mind_init.c (assigned after IRC connect)
 HIVE_NODE    g_NodeRegistry[MAX_NODES];
 int          g_NodeCount = 0;
-int          g_IrcFd = -1;
+extern int   g_IrcFd;
 MODEL_CONFIG g_ModelConfig = {0};
 
 // ── Thermal migration threshold ─────────────────────────────────────────────
