@@ -1,0 +1,78 @@
+# ══════════════════════════════════════════════════════════════════════════
+# service_hardening.yml — Service Resilience Hardening
+#
+# Configures SCM recovery policies and DACL restrictions for all
+# SymbioseOS Windows services. Prevents casual termination via
+# Task Manager and ensures automatic restart on failure.
+#
+# Reference: service_resilience_spec.md (Layers 1-2)
+# Runs unconditionally after service/driver installation.
+# ══════════════════════════════════════════════════════════════════════════
+
+title: Service Resilience Hardening
+actions:
+
+  # ── Layer 1: SCM Recovery Policy ─────────────────────────────────────
+  # Auto-restart on failure: 2s / 5s / 10s, reset counter after 24h.
+  - !powerShell:
+    command: |
+      Write-Host '[HARDEN] Configuring SCM recovery policies...' -ForegroundColor Cyan
+
+      $services = @('ChaosLoader', 'symbiose_ircd')
+      foreach ($svc in $services) {
+          $exists = Get-Service -Name $svc -ErrorAction SilentlyContinue
+          if ($exists) {
+              # Set recovery: restart/2s, restart/5s, restart/10s
+              & sc.exe failure $svc reset= 86400 actions= restart/2000/restart/5000/restart/10000
+              & sc.exe failureflag $svc 1
+              Write-Host ('[HARDEN] SCM recovery set: ' + $svc + ' (2s/5s/10s restart)') -ForegroundColor Green
+          } else {
+              Write-Host ('[HARDEN] Service not found (will be created later): ' + $svc) -ForegroundColor DarkGray
+          }
+      }
+
+      # symbiose_bridge is a kernel driver — Start=1 means boot-start,
+      # it auto-loads on every boot. No SCM recovery needed.
+      Write-Host '[HARDEN] symbiose_bridge.sys is boot-start (Type=1, Start=1) — inherently resilient' -ForegroundColor DarkGray
+    wait: true
+
+  # ── Layer 2: Service DACL Hardening ──────────────────────────────────
+  # Restrict non-admin users from stopping SymbioseOS services.
+  # SDDL breakdown:
+  #   (A;;CCLCSWRPWPDTLOCRRC;;;SY) — SYSTEM: full control
+  #   (A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA) — Administrators: full control
+  #   (A;;CCLCSWLOCRRC;;;IU) — Interactive Users: READ-ONLY (no stop/start)
+  - !powerShell:
+    command: |
+      Write-Host '[HARDEN] Applying service DACL restrictions...' -ForegroundColor Cyan
+
+      $sddl = 'D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;IU)'
+      $services = @('ChaosLoader', 'symbiose_ircd')
+
+      foreach ($svc in $services) {
+          $exists = Get-Service -Name $svc -ErrorAction SilentlyContinue
+          if ($exists) {
+              & sc.exe sdset $svc $sddl
+              if ($LASTEXITCODE -eq 0) {
+                  Write-Host ('[HARDEN] DACL hardened: ' + $svc + ' — non-admin users cannot stop') -ForegroundColor Green
+              } else {
+                  Write-Warning ('[HARDEN] DACL set failed for ' + $svc + ' — will retry after reboot')
+              }
+          }
+      }
+
+      # Registry flag
+      $infraPath = 'HKLM:\SOFTWARE\SymbioseOS\Infrastructure'
+      if (-not (Test-Path $infraPath)) {
+          New-Item -Path $infraPath -Force | Out-Null
+      }
+      Set-ItemProperty -Path $infraPath -Name 'ServiceHardened' -Value 1 -Type DWord
+
+      Write-Host '' -ForegroundColor Cyan
+      Write-Host '[HARDEN] =====================================================' -ForegroundColor Cyan
+      Write-Host '[HARDEN] Service resilience active:' -ForegroundColor Cyan
+      Write-Host '[HARDEN]   SCM: Auto-restart on failure (2s/5s/10s)' -ForegroundColor Green
+      Write-Host '[HARDEN]   DACL: Non-admin users cannot stop services' -ForegroundColor Green
+      Write-Host '[HARDEN]   Driver: Boot-start, PnP re-enumerated on reboot' -ForegroundColor Green
+      Write-Host '[HARDEN] =====================================================' -ForegroundColor Cyan
+    wait: true

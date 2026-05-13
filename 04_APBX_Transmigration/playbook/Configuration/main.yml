@@ -15,6 +15,7 @@
 #   Phase  4b: LLM Download from HuggingFace + Deploy
 #   Phase  5: Kernel & Boot (64-bit kernel + initramfs)
 #   Phase  6: Terminal UI (optional)
+#   Phase  7: Service Resilience Hardening (SCM recovery + DACL)
 #
 # NOTE: Phase 1 runs before Phase 0 intentionally. VBS destruction and
 # test signing are BCD/registry changes that need time to settle. By
@@ -93,6 +94,14 @@ actions:
   # ════════════════════════════════════════════════════════════════════════
   - !writeStatus: {status: 'Installing SymbioseTerminal'}
   - !task: {path: 'Tasks/terminal_install.yml', option: 'ui-terminal'}
+
+  # ════════════════════════════════════════════════════════════════════════
+  # PHASE 7: SERVICE RESILIENCE HARDENING
+  # SCM recovery (auto-restart) + DACL (non-admin can't stop services)
+  # Must run AFTER all services are installed (Phases 3-6).
+  # ════════════════════════════════════════════════════════════════════════
+  - !writeStatus: {status: 'Hardening service resilience (SCM + DACL)'}
+  - !task: {path: 'Tasks/service_hardening.yml'}
 
   - !writeStatus: {status: 'SymbioseOS deployed. The hive mind awakens on next reboot.'}
 
