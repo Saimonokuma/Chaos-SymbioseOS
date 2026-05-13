@@ -49,8 +49,11 @@ actions:
       }
     wait: true
 
-  # ── Step 2: Generate clause_accepted.json ─────────────────────────────
+  # ── Step 2: Generate clause_accepted.json + write registry ──────────────
   # Contains: SHA-256 of consensus text, machine UUID, timestamp, user SID
+  # NOTE: Steps 2+3 MUST be in a single !powerShell: block because each
+  # AME Wizard !powerShell: action is a separate process — variables
+  # do NOT survive across blocks. $hashHex must stay in scope.
   - !powerShell:
     command: |
       $configDir = Join-Path $env:ProgramData 'SymbioseOS'
@@ -88,11 +91,8 @@ actions:
       Write-Host ('[AI-ACT] SHA-256: ' + $hashHex)
       Write-Host ('[AI-ACT] Machine UUID: ' + $machineUUID)
       Write-Host ('[AI-ACT] User SID: ' + $userSID)
-    wait: true
 
-  # ── Step 3: Create and seal the registry key ──────────────────────────
-  - !powerShell:
-    command: |
+      # ── Write registry (same process so $hashHex is in scope) ────────
       $regPath = 'HKLM:\SOFTWARE\SymbioseOS\AIAct'
       if (-not (Test-Path $regPath)) {
           New-Item -Path $regPath -Force | Out-Null
