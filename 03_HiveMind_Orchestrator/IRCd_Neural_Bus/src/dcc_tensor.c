@@ -190,6 +190,11 @@ int dcc_stream_data(int transferIdx, const void* data, uint64_t dataSize,
             return -1;
         }
 
+        // QoS: Mark DCC tensor socket for CAKE Bulk tin (§XIV·7)
+        // Must be called immediately after accept() — acceptance criteria
+        // 0x30 = MOD_TENSOR (defined in irc_qos.c)
+        irc_set_dscp((int)xfer->SocketFd, 0x30);
+
         closesocket(xfer->ListenFd);
         xfer->ListenFd = INVALID_SOCKET;
         xfer->StartTime = time(NULL);
