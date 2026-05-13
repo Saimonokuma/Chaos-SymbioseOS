@@ -176,6 +176,17 @@ $lblMmio.Size = New-Object System.Drawing.Size(640, 22)
 $lblMmio.ForeColor = $fgSecondary
 $lblMmio.Font = $fontSmall
 $tab1.Controls.Add($lblMmio)
+$y += 28
+
+# Tab 1 review confirmation
+$chkTab1Review = New-Object System.Windows.Forms.CheckBox
+$chkTab1Review.Text = "I have reviewed GPU and NVMe allocation"
+$chkTab1Review.Location = New-Object System.Drawing.Point(15, $y)
+$chkTab1Review.Size = New-Object System.Drawing.Size(640, 22)
+$chkTab1Review.ForeColor = $okColor
+$chkTab1Review.Font = $fontSmall
+$chkTab1Review.Checked = $false
+$tab1.Controls.Add($chkTab1Review)
 
 $tabs.TabPages.Add($tab1)
 
@@ -292,6 +303,17 @@ $rbRam.Location = New-Object System.Drawing.Point(30, $y)
 $rbRam.Size = New-Object System.Drawing.Size(500, 22)
 $rbRam.ForeColor = $fgPrimary
 $tab2.Controls.Add($rbRam)
+$y += 35
+
+# Tab 2 review confirmation
+$chkTab2Review = New-Object System.Windows.Forms.CheckBox
+$chkTab2Review.Text = "I have reviewed RAM, vCPU, and execution mode allocation"
+$chkTab2Review.Location = New-Object System.Drawing.Point(15, $y)
+$chkTab2Review.Size = New-Object System.Drawing.Size(640, 22)
+$chkTab2Review.ForeColor = $okColor
+$chkTab2Review.Font = $fontSmall
+$chkTab2Review.Checked = $false
+$tab2.Controls.Add($chkTab2Review)
 
 $tabs.TabPages.Add($tab2)
 
@@ -386,6 +408,17 @@ $lblSensVal.Font = $fontTitle
 $tab3.Controls.Add($lblSensVal)
 
 $sensSlider.Add_ValueChanged({ $lblSensVal.Text = "$($sensSlider.Value)" })
+$y += 55
+
+# Tab 3 review confirmation
+$chkTab3Review = New-Object System.Windows.Forms.CheckBox
+$chkTab3Review.Text = "I have reviewed multimodal and sensor allocation"
+$chkTab3Review.Location = New-Object System.Drawing.Point(15, $y)
+$chkTab3Review.Size = New-Object System.Drawing.Size(640, 22)
+$chkTab3Review.ForeColor = $okColor
+$chkTab3Review.Font = $fontSmall
+$chkTab3Review.Checked = $false
+$tab3.Controls.Add($chkTab3Review)
 
 $tabs.TabPages.Add($tab3)
 
@@ -396,14 +429,33 @@ $tabs.TabPages.Add($tab3)
 $form.Controls.Add($tabs)
 
 $btnConfirm = New-Object System.Windows.Forms.Button
-$btnConfirm.Text = "[OK]  Confirm Configuration"
+$btnConfirm.Text = "Review all tabs to unlock"
 $btnConfirm.Location = New-Object System.Drawing.Point(240, 540)
 $btnConfirm.Size = New-Object System.Drawing.Size(240, 40)
 $btnConfirm.FlatStyle = "Flat"
-$btnConfirm.BackColor = $accent
-$btnConfirm.ForeColor = [System.Drawing.Color]::White
+$btnConfirm.BackColor = [System.Drawing.Color]::FromArgb(60, 60, 75)
+$btnConfirm.ForeColor = $fgSecondary
 $btnConfirm.Font = New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawing.FontStyle]::Bold)
 $btnConfirm.FlatAppearance.BorderSize = 0
+$btnConfirm.Enabled = $false
+
+# Gate: enable Confirm only when all 3 tab review checkboxes are checked
+$updateConfirmState = {
+    if ($chkTab1Review.Checked -and $chkTab2Review.Checked -and $chkTab3Review.Checked) {
+        $btnConfirm.Enabled = $true
+        $btnConfirm.BackColor = $accent
+        $btnConfirm.ForeColor = [System.Drawing.Color]::White
+        $btnConfirm.Text = "[OK]  Confirm Configuration"
+    } else {
+        $btnConfirm.Enabled = $false
+        $btnConfirm.BackColor = [System.Drawing.Color]::FromArgb(60, 60, 75)
+        $btnConfirm.ForeColor = $fgSecondary
+        $btnConfirm.Text = "Review all tabs to unlock"
+    }
+}
+$chkTab1Review.Add_CheckedChanged($updateConfirmState)
+$chkTab2Review.Add_CheckedChanged($updateConfirmState)
+$chkTab3Review.Add_CheckedChanged($updateConfirmState)
 
 $btnConfirm.Add_Click({
     # -- Collect all selections ------------------------------------
