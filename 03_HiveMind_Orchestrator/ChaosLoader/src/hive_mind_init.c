@@ -34,6 +34,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sched.h>
+#include <time.h>
+
+/* ── Module headers — all 21 modules linked into this binary ─────────── */
+#include "multimodal.h"
+#include "openmosix_tensor.h"
 
 /* ── Configuration ────────────────────────────────────────────────────── */
 #define IRC_HOST       "127.0.0.1"
@@ -59,6 +64,10 @@ static const char *IRC_CHANNELS[] = {
 static volatile int g_running = 1;
 static pid_t g_ircd_pid  = -1;
 static pid_t g_llama_pid = -1;
+static int   g_llama_restarts = 0;
+
+/* Global IRC fd — shared with modality_router.c and OpenMOSIX modules */
+int g_IrcFd = -1;
 
 /* ── Model config (parsed from /etc/symbiose/model.conf) ──────────────── */
 typedef struct {
@@ -78,6 +87,77 @@ static void irc_join_channels(int fd);
 static void parse_model_conf(model_config_t *cfg);
 static void death_rattle(int sig);
 static void reap_children(int sig);
+static void dispatch_irc_message(int irc_fd, const char *raw, void *shm);
+
+/* ══════════════════════════════════════════════════════════════════════ */
+/*          IRC Message Dispatch — Channel-Based Routing                */
+/*                                                                      */
+/* Parses PRIVMSG and routes to the correct module based on channel:    */
+/*   #oracle            → modality_route() (user + LLM inference)       */
+/*   #cluster-announce  → handle_cluster_announce() / handle_node_pong()*/
+/*   #recon             → scout_handle_result() (scout intel)           */
+/*   #checkpoint        → criugpu dispatch (future)                     */
+/*   #neural-jam        → D.E.M.H.X. MIDI calibration (future)         */
+/* ══════════════════════════════════════════════════════════════════════ */
+
+static void dispatch_irc_message(int irc_fd, const char *raw, void *shm)
+{
+    /* Parse: ":nick!user@host PRIVMSG #channel :message body" */
+    const char *privmsg = strstr(raw, "PRIVMSG ");
+    if (!privmsg) return;
+
+    privmsg += 8;  /* skip "PRIVMSG " */
+    const char *space = strchr(privmsg, ' ');
+    if (!space) return;
+
+    char channel[64] = {0};
+    size_t chan_len = (size_t)(space - privmsg);
+    if (chan_len >= sizeof(channel)) chan_len = sizeof(channel) - 1;
+    memcpy(channel, privmsg, chan_len);
+
+    const char *body = space + 1;
+    if (*body == ':') body++;  /* skip leading colon */
+
+    /* ── Channel-based dispatch ─────────────────────────── */
+
+    if (strcmp(channel, "#oracle") == 0) {
+        /* User messages + LLM inference → modality router */
+        modality_route(irc_fd, body, shm);
+    }
+    else if (strcmp(channel, "#cluster-announce") == 0) {
+        if (strstr(body, "NODE_JOIN")) {
+            handle_cluster_announce(body);
+        }
+        else if (strstr(body, "NODE_PONG")) {
+            /* Parse: NODE_PONG node_id=X temp=Y vram_free=Z queue=W */
+            char node_id[17] = {0};
+            float temp = 0, vram_free = 0;
+            uint32_t queue = 0;
+            const char *p;
+            if ((p = strstr(body, "node_id=")))
+                sscanf(p, "node_id=%16s", node_id);
+            if ((p = strstr(body, "temp=")))
+                sscanf(p, "temp=%f", &temp);
+            if ((p = strstr(body, "vram_free=")))
+                sscanf(p, "vram_free=%f", &vram_free);
+            if ((p = strstr(body, "queue=")))
+                sscanf(p, "queue=%u", &queue);
+            if (node_id[0])
+                handle_node_pong(node_id, temp, vram_free, queue);
+        }
+    }
+    else if (strcmp(channel, "#recon") == 0) {
+        if (strstr(body, "SCOUT_RESULT")) {
+            scout_handle_result(irc_fd, body);
+        }
+    }
+    else if (strcmp(channel, "#checkpoint") == 0) {
+        /* CRIU/GPU migration coordination — future */
+    }
+    else if (strcmp(channel, "#neural-jam") == 0) {
+        /* D.E.M.H.X. MIDI calibration — future */
+    }
+}
 
 /* ══════════════════════════════════════════════════════════════════════ */
 /*                           MAIN — PID 1                               */
@@ -182,6 +262,26 @@ int main(void)
      * while (hdr->Ready != 1) sched_yield();
      */
 
+    /* ── Step 7.5: Initialize subsystems ──────────────────────────── */
+    printf("[hive_mind] Step 7.5: Initializing subsystems...\n");
+
+    /* Initialize multimodal router from model config */
+    MM_MODEL_CONFIG mm_cfg = {0};
+    if (g_model_cfg.model_path[0]) {
+        strncpy(mm_cfg.model_path, g_model_cfg.model_path,
+                sizeof(mm_cfg.model_path) - 1);
+        mm_cfg.multimodal = g_model_cfg.multimodal;
+        if (g_model_cfg.mmproj_path[0])
+            strncpy(mm_cfg.mmproj_path, g_model_cfg.mmproj_path,
+                    sizeof(mm_cfg.mmproj_path) - 1);
+    }
+    modality_init(&mm_cfg);
+
+    /* Initialize io_uring for tensor I/O (NVMe async) */
+    tensor_io_init();
+
+    printf("[hive_mind] Subsystems initialized.\n");
+
     /* ── Step 8: Connect to IRC + JOIN channels ───────────────────── */
     printf("[hive_mind] Step 8: Connecting to IRC Neural Bus...\n");
     int irc_fd = -1;
@@ -197,12 +297,24 @@ int main(void)
 
     if (irc_fd >= 0) {
         printf("[hive_mind] IRC connected on fd %d\n", irc_fd);
+        g_IrcFd = irc_fd;  /* Make available to all modules */
         irc_send_raw(irc_fd, "NICK hive_mind\r\n");
         irc_send_raw(irc_fd, "USER hive_mind 0 * :Hive Mind PID 1\r\n");
         usleep(100000);
         irc_join_channels(irc_fd);
         irc_send_raw(irc_fd, "PRIVMSG #cluster-announce :HIVE_ONLINE node=hive_mind params=0\r\n");
-        printf("[hive_mind] HIVE_ONLINE announced.\n");
+
+        /* Emit NODE_JOIN with hardware capabilities (§VIII·1) */
+        {
+            long ncpus = sysconf(_SC_NPROCESSORS_ONLN);
+            char node_join[512];
+            snprintf(node_join, sizeof(node_join),
+                "PRIVMSG #cluster-announce :NODE_JOIN node_id=hive_mind "
+                "vram_gb=0 rdma_capable=0 backend=cpu cores=%ld\r\n",
+                ncpus > 0 ? ncpus : 1);
+            irc_send_raw(irc_fd, node_join);
+        }
+        printf("[hive_mind] HIVE_ONLINE + NODE_JOIN announced.\n");
     } else {
         printf("[hive_mind] WARNING: Could not connect to IRC after 10 retries.\n");
     }
@@ -217,12 +329,14 @@ int main(void)
     printf("════════════════════════════════════════════\n");
     printf("\n");
 
-    /* Main event loop: poll IRC, check children, yield */
+    /* ── Main event loop — central nervous system ─────────────────── */
     char buf[4096];
+    time_t last_heartbeat = time(NULL);
+
     while (g_running) {
         if (irc_fd >= 0) {
             fd_set rfds;
-            struct timeval tv = { .tv_sec = 5, .tv_usec = 0 };
+            struct timeval tv = { .tv_sec = 1, .tv_usec = 0 };  /* 1s tick */
             FD_ZERO(&rfds);
             FD_SET(irc_fd, &rfds);
 
@@ -231,23 +345,59 @@ int main(void)
                 int n = read(irc_fd, buf, sizeof(buf) - 1);
                 if (n > 0) {
                     buf[n] = '\0';
+
                     /* Handle PING to keep connection alive */
                     if (strncmp(buf, "PING", 4) == 0) {
                         buf[1] = 'O';  /* PING → PONG */
                         irc_send_raw(irc_fd, buf);
                     }
-                    /* Route IRC messages to modules here */
+                    /* Route IRC messages to modules */
+                    else if (strstr(buf, "PRIVMSG")) {
+                        dispatch_irc_message(irc_fd, buf, NULL);
+                    }
+
                 } else if (n == 0) {
                     printf("[hive_mind] IRC connection closed, reconnecting...\n");
                     close(irc_fd);
                     irc_fd = irc_connect(IRC_HOST, IRC_PORT);
+                    if (irc_fd >= 0) {
+                        g_IrcFd = irc_fd;
+                        irc_send_raw(irc_fd, "NICK hive_mind\r\n");
+                        irc_send_raw(irc_fd, "USER hive_mind 0 * :Hive Mind PID 1\r\n");
+                        usleep(100000);
+                        irc_join_channels(irc_fd);
+                    }
                 }
             }
         } else {
-            sleep(5);
+            sleep(1);
         }
 
-        /* Check if children are alive */
+        /* ── Periodic tasks (every 5 seconds) ──────────────────── */
+        time_t now = time(NULL);
+        if (now - last_heartbeat >= 5) {
+            last_heartbeat = now;
+
+            /* Cluster: prune dead nodes (no heartbeat in 10s) */
+            prune_dead_nodes();
+
+            /* Cluster: harmonic rebalance if multi-node */
+            if (count_active_nodes() > 1) {
+                hive_mind_rebalance_harmonic();
+            }
+
+            /* Emit heartbeat PONG to cluster */
+            if (irc_fd >= 0) {
+                irc_send_raw(irc_fd,
+                    "PRIVMSG #cluster-announce :NODE_PONG "
+                    "node_id=hive_mind temp=0.0 "
+                    "vram_free=0.0 queue=0\r\n");
+            }
+        }
+
+        /* ── Child process supervision ──────────────────────── */
+
+        /* IRCd respawn */
         if (g_ircd_pid > 0 && waitpid(g_ircd_pid, NULL, WNOHANG) != 0) {
             printf("[hive_mind] symbiose_ircd exited — restarting...\n");
             g_ircd_pid = fork();
@@ -255,6 +405,31 @@ int main(void)
                 execl("/sbin/symbiose_ircd", "symbiose_ircd",
                       "--bind", IRC_HOST, "--port", "6667", NULL);
                 _exit(1);
+            }
+        }
+
+        /* llama-server respawn (§XIII·7: max 3 restarts, 2s backoff) */
+        if (g_llama_pid > 0 && waitpid(g_llama_pid, NULL, WNOHANG) != 0) {
+            if (g_llama_restarts < 3) {
+                g_llama_restarts++;
+                printf("[hive_mind] llama-server crashed — restart %d/3...\n",
+                       g_llama_restarts);
+                usleep(2000000);  /* 2s backoff */
+                g_llama_pid = fork();
+                if (g_llama_pid == 0) {
+                    execl("/sbin/llama-server", "llama-server",
+                          "--model", g_model_cfg.model_path,
+                          "--port", "8080", "--host", "127.0.0.1", NULL);
+                    _exit(1);
+                }
+            } else {
+                /* Degraded mode — report to telemetry */
+                printf("[hive_mind] llama-server DEAD after 3 restarts\n");
+                if (irc_fd >= 0) {
+                    irc_send_raw(irc_fd,
+                        "PRIVMSG #telemetry :INFERENCE_DEAD restarts=3\r\n");
+                }
+                g_llama_pid = -1;  /* Stop trying */
             }
         }
     }
