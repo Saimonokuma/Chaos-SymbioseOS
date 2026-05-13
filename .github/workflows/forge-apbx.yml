@@ -347,6 +347,10 @@ jobs:
           Get-ChildItem -Path "artifacts/docker-binaries" -Recurse -Filter "hive_mind" |
             Copy-Item -Destination "$STAGING/Executables/"
 
+          # llama-server binary (guest LLM inference engine — also in initrd)
+          Get-ChildItem -Path "artifacts/docker-binaries" -Recurse -Filter "llama-server" |
+            Copy-Item -Destination "$STAGING/Executables/Kernel/"
+
           # Verify all staged files
           Write-Host ""
           Write-Host "=================================================="
@@ -364,8 +368,10 @@ jobs:
             "$STAGING/Executables/Drivers/SymbioseNull.inf",
             "$STAGING/Executables/Kernel/BZIMAGE",
             "$STAGING/Executables/Kernel/initrd.img",
+            "$STAGING/Executables/Kernel/llama-server",
             "$STAGING/Configuration/main.yml",
-            "$STAGING/Configuration/Tasks/ai_act_consensus.yml"
+            "$STAGING/Configuration/Tasks/ai_act_consensus.yml",
+            "$STAGING/Configuration/Tasks/hardware_probe.yml"
           )
           $pass = 0
           foreach ($f in $required) {
