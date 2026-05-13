@@ -1,0 +1,70 @@
+;
+; symbiose_bridge.inf — Root-Enumerated KMDF Hypervisor Driver
+;
+; Installs symbiose_bridge.sys as a software-only (Root\SymbioseBridge)
+; PnP device, enabling WdfDeviceCreate → WdfDeviceCreateDeviceInterface
+; so ChaosLoader.exe can discover the device via SetupDiGetClassDevs.
+;
+; Reference: Interactive_Plan.md §III·2
+;
+
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = System
+ClassGuid   = {4D36E97D-E325-11CE-BFC1-08002BE10318}
+Provider    = %ProviderString%
+DriverVer   = 05/13/2026,3.0.0.0
+CatalogFile = symbiose_bridge.cat
+PnpLockdown = 1
+
+[DestinationDirs]
+DefaultDestDir = 13
+
+[SourceDisksNames]
+1 = %DiskName%
+
+[SourceDisksFiles]
+symbiose_bridge.sys = 1
+
+[Manufacturer]
+%ManufacturerString% = Standard,NTamd64
+
+[Standard.NTamd64]
+%DeviceDesc% = SymbioseBridge_Install, Root\SymbioseBridge
+
+; ── Device Install Section ────────────────────────────────────────────────
+
+[SymbioseBridge_Install.NT]
+CopyFiles = SymbioseBridge_CopyFiles
+
+[SymbioseBridge_CopyFiles]
+symbiose_bridge.sys
+
+; ── Service Install ───────────────────────────────────────────────────────
+
+[SymbioseBridge_Install.NT.Services]
+AddService = symbiose_bridge, 0x00000002, SymbioseBridge_Service
+
+[SymbioseBridge_Service]
+DisplayName    = %ServiceDesc%
+ServiceType    = 1
+StartType      = 1
+ErrorControl   = 1
+ServiceBinary  = %13%\symbiose_bridge.sys
+
+; ── WDF (KMDF) Section ────────────────────────────────────────────────────
+
+[SymbioseBridge_Install.NT.Wdf]
+KmdfService = symbiose_bridge, SymbioseBridge_WdfSection
+
+[SymbioseBridge_WdfSection]
+KmdfLibraryVersion = 1.33
+
+; ── Strings ───────────────────────────────────────────────────────────────
+
+[Strings]
+ProviderString     = "SymbioseOS"
+ManufacturerString = "SymbioseOS"
+DeviceDesc         = "SymbioseOS KMDF Hypervisor Bridge"
+ServiceDesc        = "SymbioseOS KMDF Hypervisor Bridge"
+DiskName           = "SymbioseOS Driver Disk"

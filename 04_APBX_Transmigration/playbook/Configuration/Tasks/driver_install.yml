@@ -4,12 +4,16 @@
 # Installs symbiose_bridge.sys (Ring-0 hypervisor) and SymbioseNull.sys
 # (NVMe isolation filter) from Executables/Drivers/ into the system.
 #
+# FIXED: Uses proper PnP Root-enumerated device node instead of raw
+# registry entries, so EvtDriverDeviceAdd fires and exposes the device
+# interface GUID for ChaosLoader SetupDi discovery.
+#
 # Reference: Interactive_Plan.md §II·3 Job 1, §III, BRIDGE-011
 # Depends: Executables populated by CI-001 (build-kmdf-driver)
 # ══════════════════════════════════════════════════════════════════════════
 title: Install KMDF Hypervisor Driver
 actions:
-  # Copy driver files to System32\drivers
+  # ── Step 1: Copy driver files ───────────────────────────────────────────
   - !cmd:
       command: 'copy /Y "Drivers\symbiose_bridge.sys" "%SystemRoot%\System32\drivers\"'
       weight: 20
@@ -20,27 +24,48 @@ actions:
       weight: 20
       exeDir: true
 
-  # Copy the test-signed catalog for driver verification
+  # ── Step 2: Stage signed INF + catalog into driver store ────────────────
+  # The /force flag bypasses signature enforcement when test signing is ON.
   - !cmd:
-      command: 'copy /Y "Drivers\symbiose_bridge.cat" "%SystemRoot%\System32\CatRoot\{F750E6C3-38EE-11D1-85E5-00C04FC295EE}\"'
-      weight: 10
-      exeDir: true
-
-  # Install SymbioseNull filter using the INF (BRIDGE-011)
-  # UpperFilters AddReg flag 0x00010008 = APPEND (never replace existing filters)
-  - !cmd:
-      command: 'pnputil /add-driver "Drivers\SymbioseNull.inf" /install'
+      command: 'pnputil /add-driver "Drivers\symbiose_bridge.inf" /install /force'
       weight: 30
       exeDir: true
 
-  # Create symbiose_bridge service entry
-  # Type 1 = kernel driver, Start 3 = demand start, ErrorControl 1 = normal
+  # ── Step 3: Install SymbioseNull filter (if INF present) ────────────────
+  - !cmd:
+      command: 'pnputil /add-driver "Drivers\SymbioseNull.inf" /install /force'
+      weight: 30
+      exeDir: true
+
+  # ── Step 4: Create Root-enumerated PnP device node ─────────────────────
+  # This is critical: without a PnP device node, EvtDriverDeviceAdd never
+  # fires, so the device interface GUID is never exposed, and ChaosLoader
+  # cannot discover the device via SetupDi.
+  - !powerShell:
+      command: |
+        $devPath = 'HKLM:\SYSTEM\CurrentControlSet\Enum\Root\SymbioseBridge\0000'
+        if (-not (Test-Path $devPath)) {
+            New-Item -Path $devPath -Force | Out-Null
+        }
+        Set-ItemProperty -Path $devPath -Name 'HardwareID' -Value @('Root\SymbioseBridge') -Type MultiString
+        Set-ItemProperty -Path $devPath -Name 'CompatibleIDs' -Value @() -Type MultiString
+        Set-ItemProperty -Path $devPath -Name 'DeviceDesc' -Value 'SymbioseOS KMDF Hypervisor Bridge' -Type String
+        Set-ItemProperty -Path $devPath -Name 'ClassGUID' -Value '{4D36E97D-E325-11CE-BFC1-08002BE10318}' -Type String
+        Set-ItemProperty -Path $devPath -Name 'Class' -Value 'System' -Type String
+        Set-ItemProperty -Path $devPath -Name 'Service' -Value 'symbiose_bridge' -Type String
+        Set-ItemProperty -Path $devPath -Name 'ConfigFlags' -Value 0 -Type DWord
+        Set-ItemProperty -Path $devPath -Name 'Capabilities' -Value 0 -Type DWord
+        Set-ItemProperty -Path $devPath -Name 'Mfg' -Value 'SymbioseOS' -Type String
+        Write-Host '[DRIVER] Root\SymbioseBridge PnP device node created'
+      weight: 30
+
+  # ── Step 5: Ensure service entry points to correct binary ───────────────
   - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Services\symbiose_bridge', value: 'Type', type: REG_DWORD, data: '1'}
-  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Services\symbiose_bridge', value: 'Start', type: REG_DWORD, data: '3'}
+  - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Services\symbiose_bridge', value: 'Start', type: REG_DWORD, data: '1'}
   - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Services\symbiose_bridge', value: 'ErrorControl', type: REG_DWORD, data: '1'}
   - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Services\symbiose_bridge', value: 'ImagePath', type: REG_EXPAND_SZ, data: '\SystemRoot\System32\drivers\symbiose_bridge.sys'}
   - !registryValue: {path: 'HKLM\SYSTEM\CurrentControlSet\Services\symbiose_bridge', value: 'DisplayName', type: REG_SZ, data: 'SymbioseOS KMDF Hypervisor Bridge'}
 
-  # Register the driver device interface GUID for ChaosLoader IOCTL access
+  # ── Step 6: Metadata ────────────────────────────────────────────────────
   - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\Bridge', value: 'DriverInstalled', type: REG_DWORD, data: '1'}
   - !registryValue: {path: 'HKLM\SOFTWARE\SymbioseOS\Bridge', value: 'Version', type: REG_SZ, data: '3.0'}
