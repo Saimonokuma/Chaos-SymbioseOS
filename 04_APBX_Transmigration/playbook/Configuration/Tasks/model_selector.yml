@@ -71,33 +71,49 @@ actions:
 
   # Handle 'llm-local' selection — open file picker for GGUF/SafeTensors
   # SAFE: Only saves the file path to JSON. Does NOT load the model.
+  # DEFENSIVE: Double-check that llm-local was actually selected before
+  # opening the dialog, in case AME Wizard's option: tag doesn't filter.
   - !powerShell:
     command: |
-      Add-Type -AssemblyName System.Windows.Forms
-      $dialog = New-Object System.Windows.Forms.OpenFileDialog
-      $dialog.Title = 'SymbioseOS - Select Local F32 Model File'
-      $dialog.Filter = 'GGUF Files (*.gguf)|*.gguf|SafeTensors (*.safetensors)|*.safetensors|All Files (*.*)|*.*'
-      $dialog.FilterIndex = 1
-      $dialog.Multiselect = $false
-      $dialog.InitialDirectory = [Environment]::GetFolderPath('UserProfile')
-      $result = $dialog.ShowDialog()
-      if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-          $modelPath = $dialog.FileName
-          $configDir = Join-Path $env:ProgramData 'SymbioseOS'
-          if (-not (Test-Path $configDir)) {
-              New-Item -Path $configDir -ItemType Directory -Force | Out-Null
+      # Defensive guard: verify this action should run by checking for
+      # a marker that confirms llm-local was the intended selection.
+      # AME Wizard's option: tag should filter this, but belt+suspenders.
+      $modelFile = Join-Path $env:TEMP 'symbiose_models.json'
+      $shouldRun = $true
+      if (Test-Path $modelFile) {
+          $data = Get-Content $modelFile -Raw | ConvertFrom-Json
+          if ($data.selected_option -and $data.selected_option -ne 'llm-local') {
+              Write-Host '[CONFIG-007] Skipping file dialog — non-local model selected'
+              $shouldRun = $false
           }
-          $localConfig = @{
-              'repo_id'    = 'LOCAL'
-              'model_path' = $modelPath
-              'file_name'  = [System.IO.Path]::GetFileName($modelPath)
-              'precision'  = 'F32'
+      }
+      if ($shouldRun) {
+          Add-Type -AssemblyName System.Windows.Forms
+          $dialog = New-Object System.Windows.Forms.OpenFileDialog
+          $dialog.Title = 'SymbioseOS - Select Local F32 Model File'
+          $dialog.Filter = 'GGUF Files (*.gguf)|*.gguf|SafeTensors (*.safetensors)|*.safetensors|All Files (*.*)|*.*'
+          $dialog.FilterIndex = 1
+          $dialog.Multiselect = $false
+          $dialog.InitialDirectory = [Environment]::GetFolderPath('UserProfile')
+          $result = $dialog.ShowDialog()
+          if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+              $modelPath = $dialog.FileName
+              $configDir = Join-Path $env:ProgramData 'SymbioseOS'
+              if (-not (Test-Path $configDir)) {
+                  New-Item -Path $configDir -ItemType Directory -Force | Out-Null
+              }
+              $localConfig = @{
+                  'repo_id'    = 'LOCAL'
+                  'model_path' = $modelPath
+                  'file_name'  = [System.IO.Path]::GetFileName($modelPath)
+                  'precision'  = 'F32'
+              }
+              $outFile = Join-Path $configDir 'local_model.json'
+              $localConfig | ConvertTo-Json | Out-File $outFile -Encoding UTF8 -Force
+              Write-Host ('[CONFIG-007] Local model path saved: ' + $modelPath)
+          } else {
+              Write-Host '[CONFIG-007] No file selected - will prompt again at boot'
           }
-          $outFile = Join-Path $configDir 'local_model.json'
-          $localConfig | ConvertTo-Json | Out-File $outFile -Encoding UTF8 -Force
-          Write-Host ('[CONFIG-007] Local model path saved: ' + $modelPath)
-      } else {
-          Write-Host '[CONFIG-007] No file selected - will prompt again at boot'
       }
     wait: true
     option: llm-local

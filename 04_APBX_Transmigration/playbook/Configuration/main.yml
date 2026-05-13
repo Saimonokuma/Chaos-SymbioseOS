@@ -6,15 +6,21 @@
 #
 # Phase Pipeline:
 #   Phase -1: AI Act & Human Tutoring Consensus (constitutional, cannot bypass)
+#   Phase  1: Security Disarmament (VBS/HVCI + test signing) — EARLY, before GUI
 #   Phase  0: Hardware Detection & Configuration → symbiose_config.json
 #   Phase 0b: Resource Allocation Profile (CPU/RAM/GPU tier)
-#   Phase  1: Security Disarmament (VBS/HVCI + test signing)
 #   Phase  2: Hardware Airlock (DDA GPU + NVMe isolation)
 #   Phase  3: Driver Installation (symbiose_bridge.sys)
 #   Phase  4a: IRC Neural Bus
 #   Phase  4b: LLM Download from HuggingFace + Deploy
 #   Phase  5: Kernel & Boot (64-bit kernel + initramfs)
 #   Phase  6: Terminal UI (optional)
+#
+# NOTE: Phase 1 runs before Phase 0 intentionally. VBS destruction and
+# test signing are BCD/registry changes that need time to settle. By
+# running them early (before the user interacts with the HW Configurator
+# GUI in Phase 0), we maximize the time window before Phase 3 needs
+# test signing to be effective for driver staging.
 # ══════════════════════════════════════════════════════════════════════════
 
 title: SymbioseOS V3 Deployment
@@ -27,7 +33,18 @@ actions:
   - !task: {path: 'Tasks/ai_act_consensus.yml', option: 'ai-act-accept'}
 
   # ════════════════════════════════════════════════════════════════════════
+  # PHASE 1: SECURITY DISARMAMENT + TEST SIGNING (EARLY — before HW GUI)
+  # VBS/HVCI destruction and test signing are BCD/registry writes that
+  # take full effect after reboot. Running them early gives them maximum
+  # settle time while the user configures hardware in Phase 0.
+  # ════════════════════════════════════════════════════════════════════════
+  - !writeStatus: {status: 'Destroying VBS/HVCI and enabling test signing'}
+  - !task: {path: 'Tasks/vbs_destruction.yml', option: 'hw-vbs'}
+  - !task: {path: 'Tasks/enable_test_signing.yml'}
+
+  # ════════════════════════════════════════════════════════════════════════
   # PHASE 0: HARDWARE DETECTION & MODEL ROUTING
+  # (User interacts with Configurator GUI here — VBS/BCD changes settle)
   # ════════════════════════════════════════════════════════════════════════
   - !writeStatus: {status: 'Detecting hardware and writing configuration'}
   - !task: {path: 'Tasks/model_selector.yml'}
@@ -39,13 +56,6 @@ actions:
   # ════════════════════════════════════════════════════════════════════════
   - !writeStatus: {status: 'Applying resource allocation profile'}
   - !task: {path: 'Tasks/resource_allocation.yml'}
-
-  # ════════════════════════════════════════════════════════════════════════
-  # PHASE 1: SECURITY DISARMAMENT + TEST SIGNING
-  # ════════════════════════════════════════════════════════════════════════
-  - !writeStatus: {status: 'Destroying VBS/HVCI and enabling test signing'}
-  - !task: {path: 'Tasks/vbs_destruction.yml', option: 'hw-vbs'}
-  - !task: {path: 'Tasks/enable_test_signing.yml'}
 
   # ════════════════════════════════════════════════════════════════════════
   # PHASE 2: HARDWARE AIRLOCK
@@ -85,3 +95,4 @@ actions:
   - !task: {path: 'Tasks/terminal_install.yml', option: 'ui-terminal'}
 
   - !writeStatus: {status: 'SymbioseOS deployed. The hive mind awakens on next reboot.'}
+

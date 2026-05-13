@@ -25,17 +25,46 @@ actions:
       exeDir: true
 
   # ── Step 2: Stage signed INF + catalog into driver store ────────────────
-  # The /force flag bypasses signature enforcement when test signing is ON.
-  - !cmd:
-      command: 'pnputil /add-driver "Drivers\symbiose_bridge.inf" /install /force'
-      weight: 30
-      exeDir: true
+  # Uses /force to bypass signature enforcement. If pnputil fails (test
+  # signing not yet active), we create a RunOnce entry to retry after reboot.
+  - !powerShell:
+      command: |
+        $exeDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+        if (-not $exeDir) { $exeDir = $PWD.Path }
+        $bridgeInf = Join-Path $exeDir 'Drivers\symbiose_bridge.inf'
+        $nullInf   = Join-Path $exeDir 'Drivers\SymbioseNull.inf'
+        $allOk = $true
 
-  # ── Step 3: Install SymbioseNull filter (if INF present) ────────────────
-  - !cmd:
-      command: 'pnputil /add-driver "Drivers\SymbioseNull.inf" /install /force'
-      weight: 30
+        # Stage symbiose_bridge
+        Write-Host '[DRIVER] Staging symbiose_bridge.inf...'
+        $out = & pnputil /add-driver $bridgeInf /install /force 2>&1
+        Write-Host $out
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning '[DRIVER] pnputil failed for symbiose_bridge — will retry after reboot'
+            $allOk = $false
+        }
+
+        # Stage SymbioseNull
+        Write-Host '[DRIVER] Staging SymbioseNull.inf...'
+        $out = & pnputil /add-driver $nullInf /install /force 2>&1
+        Write-Host $out
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning '[DRIVER] pnputil failed for SymbioseNull — will retry after reboot'
+            $allOk = $false
+        }
+
+        # If any staging failed, create RunOnce retry for after reboot
+        if (-not $allOk) {
+            $retryCmd = "pnputil /add-driver `"$bridgeInf`" /install /force & pnputil /add-driver `"$nullInf`" /install /force"
+            $runOncePath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce'
+            Set-ItemProperty -Path $runOncePath -Name 'SymbioseDriverRetry' -Value "cmd /c $retryCmd" -Type String
+            Write-Host '[DRIVER] RunOnce retry registered — drivers will be staged after reboot' -ForegroundColor Yellow
+        } else {
+            Write-Host '[DRIVER] Both drivers staged successfully' -ForegroundColor Green
+        }
       exeDir: true
+      wait: true
+      weight: 30
 
   # ── Step 4: Create Root-enumerated PnP device node ─────────────────────
   # This is critical: without a PnP device node, EvtDriverDeviceAdd never
