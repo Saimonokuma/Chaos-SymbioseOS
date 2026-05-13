@@ -10,6 +10,9 @@
  *--*/
 
 #include "symbiose_ircd.h"
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -615,11 +618,84 @@ void ircd_shutdown(IRCD_SERVER* s)
     printf("[IRCD] Shutdown complete\n");
 }
 
+// ── Win32 Service support ───────────────────────────────────────────────────
+#ifdef _WIN32
+
+static SERVICE_STATUS        g_SvcStatus;
+static SERVICE_STATUS_HANDLE g_SvcStatusHandle;
+static IRCD_SERVER           g_Server;
+
+static void WINAPI SvcCtrlHandler(DWORD dwCtrl)
+{
+    switch (dwCtrl) {
+    case SERVICE_CONTROL_STOP:
+    case SERVICE_CONTROL_SHUTDOWN:
+        g_SvcStatus.dwCurrentState = SERVICE_STOP_PENDING;
+        SetServiceStatus(g_SvcStatusHandle, &g_SvcStatus);
+        ircd_signal_shutdown(&g_Server);
+        return;
+    case SERVICE_CONTROL_INTERROGATE:
+        break;
+    default:
+        break;
+    }
+    SetServiceStatus(g_SvcStatusHandle, &g_SvcStatus);
+}
+
+static void WINAPI ServiceMain(DWORD dwArgc, LPTSTR* lpszArgv)
+{
+    (void)dwArgc; (void)lpszArgv;
+
+    g_SvcStatusHandle = RegisterServiceCtrlHandler("SymbioseIRCd", SvcCtrlHandler);
+    if (!g_SvcStatusHandle) return;
+
+    g_SvcStatus.dwServiceType      = SERVICE_WIN32_OWN_PROCESS;
+    g_SvcStatus.dwCurrentState     = SERVICE_START_PENDING;
+    g_SvcStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN;
+    g_SvcStatus.dwWin32ExitCode    = 0;
+    SetServiceStatus(g_SvcStatusHandle, &g_SvcStatus);
+
+    if (ircd_init(&g_Server) != 0) {
+        g_SvcStatus.dwCurrentState = SERVICE_STOPPED;
+        g_SvcStatus.dwWin32ExitCode = 1;
+        SetServiceStatus(g_SvcStatusHandle, &g_SvcStatus);
+        return;
+    }
+
+    g_SvcStatus.dwCurrentState = SERVICE_RUNNING;
+    SetServiceStatus(g_SvcStatusHandle, &g_SvcStatus);
+
+    ircd_run(&g_Server);
+    ircd_shutdown(&g_Server);
+
+    g_SvcStatus.dwCurrentState = SERVICE_STOPPED;
+    SetServiceStatus(g_SvcStatusHandle, &g_SvcStatus);
+}
+
+#endif /* _WIN32 */
+
 // ── Entry point ─────────────────────────────────────────────────────────────
 int main(int argc, char* argv[])
 {
     (void)argc; (void)argv;
+
+#ifdef _WIN32
+    // Try to connect to SCM — this succeeds when started as a service
+    SERVICE_TABLE_ENTRY dispatchTable[] = {
+        { "SymbioseIRCd", (LPSERVICE_MAIN_FUNCTION)ServiceMain },
+        { NULL, NULL }
+    };
+
+    if (StartServiceCtrlDispatcher(dispatchTable)) {
+        return 0;  // SCM took over, ServiceMain ran
+    }
+
+    // If dispatcher failed, we're running from console (debug mode)
+    // Fall through to direct execution
+#endif
+
     printf("=== SymbioseOS IRCd Neural Bus v3.0 ===\n");
+    printf("[IRCD] Running in console mode (not as service)\n");
 
     IRCD_SERVER server;
     if (ircd_init(&server) != 0) {
