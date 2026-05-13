@@ -1,8 +1,7 @@
 /*++
  * criugpu_daemon.c — CRIU GPU Plugin (Live VRAM Migration)
  *
- * HIVE-MOSIX-003: Lock APIs, dump VRAM via cudaMemcpy, stream via RDMA,
- *                 restore on target
+ * HIVE-MOSIX-003: Lock APIs, dump VRAM, stream via RDMA, restore on target
  *
  * Reference:
  *   - Interactive_Plan.md §VIII·3 (lines 3492-3553) — CRIUgpu Protocol
@@ -12,13 +11,22 @@
  *   migration. When a node overheats or is evicted, the running inference
  *   shard must be transferred to a new node WITHOUT losing the KV cache.
  *
+ *   MULTI-VENDOR SUPPORT:
+ *     - NVIDIA: CUDA runtime (cudaMemcpy, cudaMalloc, cudaFree)
+ *     - AMD:    ROCm/HIP runtime (hipMemcpy, hipMalloc, hipFree)
+ *     - CPU:    memcpy fallback (no GPU passthrough)
+ *
+ *   HIP is API-compatible with CUDA — the function signatures are identical.
+ *   We use dlopen() at runtime to detect which backend is available.
+ *
  *   Migration sequence:
  *     1. CRIU dump --leave-stopped (freeze process)
- *     2. cudaMemcpy DeviceToHost (serialize VRAM)
- *     3. RDMA stream checkpoint + VRAM to target
- *     4. CRIU restore on target
- *     5. cudaMemcpy HostToDevice (restore VRAM)
- *     6. Announce SHARD_READY on #hive-mind
+ *     2. GPU DeviceToHost copy (serialize VRAM)
+ *     3. Write VRAM to checkpoint dir as vram.bin + CRC64
+ *     4. RDMA stream checkpoint + VRAM to target
+ *     5. CRIU restore on target
+ *     6. GPU HostToDevice copy (restore VRAM)
+ *     7. Announce SHARD_READY on #hive-mind
  *
  *   CRC64 validation ensures VRAM integrity across migration.
  *
@@ -33,56 +41,293 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <dlfcn.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 
-// ── CUDA runtime stubs (linked against libcudart.so) ────────────────────────
-// In production: #include <cuda_runtime.h>
-// For compilation without CUDA SDK, we declare the minimal interface.
+/* ═══════════════════════════════════════════════════════════════════════════
+ * GPU Backend Abstraction — NVIDIA CUDA / AMD ROCm HIP / CPU Fallback
+ *
+ * Both CUDA and HIP share identical function signatures:
+ *   cudaMemcpy / hipMemcpy  (dst, src, size, kind)
+ *   cudaMalloc / hipMalloc  (ptr, size)
+ *   cudaFree   / hipFree    (ptr)
+ *   cudaGetDeviceProperties / hipGetDeviceProperties
+ *
+ * We dlopen() at runtime to detect which backend is installed.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
 typedef enum {
-    cudaSuccess = 0
-} cudaError_t;
+    GPU_BACKEND_NONE = 0,    /* No GPU — CPU fallback */
+    GPU_BACKEND_CUDA = 1,    /* NVIDIA CUDA */
+    GPU_BACKEND_HIP  = 2     /* AMD ROCm/HIP */
+} gpu_backend_t;
 
 typedef enum {
-    cudaMemcpyHostToDevice = 1,
-    cudaMemcpyDeviceToHost = 2
-} cudaMemcpyKind;
+    gpuSuccess = 0
+} gpuError_t;
 
-extern cudaError_t cudaMemcpy(void* dst, const void* src, size_t count,
-                               cudaMemcpyKind kind);
-extern cudaError_t cudaMalloc(void** devPtr, size_t size);
-extern cudaError_t cudaFree(void* devPtr);
+typedef enum {
+    gpuMemcpyHostToDevice = 1,
+    gpuMemcpyDeviceToHost = 2
+} gpuMemcpyKind;
 
-// ── CRC64-ECMA (same as used in IRC module) ─────────────────────────────────
-extern uint64_t crc64_ecma(const void* data, size_t len);
+/* Function pointers loaded via dlopen */
+typedef gpuError_t (*fn_gpuMemcpy)(void*, const void*, size_t, gpuMemcpyKind);
+typedef gpuError_t (*fn_gpuMalloc)(void**, size_t);
+typedef gpuError_t (*fn_gpuFree)(void*);
 
-// ── CRIU checkpoint directory ───────────────────────────────────────────────
+static gpu_backend_t  g_GpuBackend = GPU_BACKEND_NONE;
+static void*          g_GpuLib     = NULL;
+static fn_gpuMemcpy   g_gpuMemcpy  = NULL;
+static fn_gpuMalloc   g_gpuMalloc  = NULL;
+static fn_gpuFree     g_gpuFree    = NULL;
+
+/* CRC64 from hive_mind_glue.c */
+extern uint64_t crc64_compute(const void* data, size_t len);
+
+/* ── Checkpoint paths ──────────────────────────────────────────────────── */
 #define CRIU_CHECKPOINT_DIR     "/tmp/shard_ckpt"
 #define VRAM_DUMP_FILE          "/tmp/shard_ckpt/vram.bin"
+#define VRAM_CRC_FILE           "/tmp/shard_ckpt/vram.crc64"
 
-// ═══════════════════════════════════════════════════════════════════════════
-// criu_checkpoint_shard — Freeze and dump a running inference shard
-//
-// Reference: §VIII·3 lines 3503-3508
-//
-// Steps:
-//   1. Call CRIU dump --leave-stopped to freeze the process
-//   2. Serialize VRAM via cudaMemcpy (DeviceToHost)
-//   3. Write VRAM to checkpoint directory as vram.bin
-// ═══════════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════════
+ * criugpu_detect_backend — Runtime GPU backend detection
+ *
+ * Tries to dlopen() the GPU runtime libraries in order:
+ *   1. libhiprt64.so / libamdhip64.so (AMD ROCm/HIP)
+ *   2. libcudart.so (NVIDIA CUDA)
+ *   3. CPU fallback (no GPU VRAM to migrate)
+ *
+ * Called once at init. After this, g_gpuMemcpy etc. are callable.
+ * ═══════════════════════════════════════════════════════════════════════════ */
 
-int criu_checkpoint_shard(const char* checkpoint_dir)
+int criugpu_detect_backend(void)
+{
+    /* ── Try AMD ROCm/HIP first ──────────────────────────────────────── */
+    g_GpuLib = dlopen("libamdhip64.so", RTLD_LAZY);
+    if (!g_GpuLib) g_GpuLib = dlopen("libamdhip64.so.6", RTLD_LAZY);
+    if (!g_GpuLib) g_GpuLib = dlopen("libamdhip64.so.5", RTLD_LAZY);
+
+    if (g_GpuLib) {
+        g_gpuMemcpy = (fn_gpuMemcpy)dlsym(g_GpuLib, "hipMemcpy");
+        g_gpuMalloc = (fn_gpuMalloc)dlsym(g_GpuLib, "hipMalloc");
+        g_gpuFree   = (fn_gpuFree)dlsym(g_GpuLib, "hipFree");
+
+        if (g_gpuMemcpy && g_gpuMalloc && g_gpuFree) {
+            g_GpuBackend = GPU_BACKEND_HIP;
+            fprintf(stderr, "[CRIUgpu] Detected AMD ROCm/HIP backend\n");
+            return 0;
+        }
+        dlclose(g_GpuLib);
+        g_GpuLib = NULL;
+    }
+
+    /* ── Try NVIDIA CUDA ─────────────────────────────────────────────── */
+    g_GpuLib = dlopen("libcudart.so", RTLD_LAZY);
+    if (!g_GpuLib) g_GpuLib = dlopen("libcudart.so.12", RTLD_LAZY);
+    if (!g_GpuLib) g_GpuLib = dlopen("libcudart.so.11", RTLD_LAZY);
+
+    if (g_GpuLib) {
+        g_gpuMemcpy = (fn_gpuMemcpy)dlsym(g_GpuLib, "cudaMemcpy");
+        g_gpuMalloc = (fn_gpuMalloc)dlsym(g_GpuLib, "cudaMalloc");
+        g_gpuFree   = (fn_gpuFree)dlsym(g_GpuLib, "cudaFree");
+
+        if (g_gpuMemcpy && g_gpuMalloc && g_gpuFree) {
+            g_GpuBackend = GPU_BACKEND_CUDA;
+            fprintf(stderr, "[CRIUgpu] Detected NVIDIA CUDA backend\n");
+            return 0;
+        }
+        dlclose(g_GpuLib);
+        g_GpuLib = NULL;
+    }
+
+    /* ── CPU fallback ────────────────────────────────────────────────── */
+    g_GpuBackend = GPU_BACKEND_NONE;
+    fprintf(stderr, "[CRIUgpu] No GPU runtime found — CPU-only mode\n");
+    return 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * vram_serialize — Dump GPU memory to a file with CRC64
+ *
+ * For both CUDA and HIP: gpuMemcpy(host, device, size, DeviceToHost)
+ * For CPU mode: memcpy from the host-side tensor buffer
+ *
+ * Returns: 0 on success, -1 on failure
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+static int vram_serialize(void* device_ptr, size_t vram_size,
+                           const char* out_path)
+{
+    if (!device_ptr || vram_size == 0 || !out_path) return -1;
+
+    /* Allocate host buffer for VRAM contents */
+    void* host_buf = malloc(vram_size);
+    if (!host_buf) {
+        fprintf(stderr, "[CRIUgpu] Failed to allocate %zu bytes for VRAM dump\n",
+                vram_size);
+        return -1;
+    }
+
+    /* Copy VRAM → host */
+    if (g_GpuBackend != GPU_BACKEND_NONE && g_gpuMemcpy) {
+        gpuError_t err = g_gpuMemcpy(host_buf, device_ptr, vram_size,
+                                      gpuMemcpyDeviceToHost);
+        if (err != gpuSuccess) {
+            fprintf(stderr, "[CRIUgpu] %s DeviceToHost copy failed (err=%d)\n",
+                    g_GpuBackend == GPU_BACKEND_HIP ? "hipMemcpy" : "cudaMemcpy",
+                    err);
+            free(host_buf);
+            return -1;
+        }
+        fprintf(stderr, "[CRIUgpu] %s: %zu bytes copied DeviceToHost\n",
+                g_GpuBackend == GPU_BACKEND_HIP ? "HIP" : "CUDA", vram_size);
+    } else {
+        /* CPU fallback — device_ptr is actually a host pointer */
+        memcpy(host_buf, device_ptr, vram_size);
+        fprintf(stderr, "[CRIUgpu] CPU mode: %zu bytes memcpy'd\n", vram_size);
+    }
+
+    /* Write to file */
+    int fd = open(out_path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    if (fd < 0) {
+        fprintf(stderr, "[CRIUgpu] Cannot create %s: %s\n",
+                out_path, strerror(errno));
+        free(host_buf);
+        return -1;
+    }
+
+    ssize_t written = write(fd, host_buf, vram_size);
+    close(fd);
+
+    if (written != (ssize_t)vram_size) {
+        fprintf(stderr, "[CRIUgpu] Short write to %s: %zd/%zu\n",
+                out_path, written, vram_size);
+        free(host_buf);
+        return -1;
+    }
+
+    /* Compute and save CRC64 for integrity validation */
+    uint64_t crc = crc64_compute(host_buf, vram_size);
+    free(host_buf);
+
+    char crc_path[512];
+    snprintf(crc_path, sizeof(crc_path), "%s.crc64", out_path);
+    FILE* fp = fopen(crc_path, "w");
+    if (fp) {
+        fprintf(fp, "%016llx %zu\n", (unsigned long long)crc, vram_size);
+        fclose(fp);
+    }
+
+    fprintf(stderr, "[CRIUgpu] VRAM dumped: %zu bytes, CRC64=%016llx\n",
+            vram_size, (unsigned long long)crc);
+
+    return 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * vram_restore — Load VRAM dump back to GPU with CRC64 validation
+ *
+ * For both CUDA and HIP: gpuMemcpy(device, host, size, HostToDevice)
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+static int vram_restore(void* device_ptr, size_t vram_size,
+                         const char* in_path)
+{
+    if (!device_ptr || vram_size == 0 || !in_path) return -1;
+
+    /* Read VRAM dump from file */
+    int fd = open(in_path, O_RDONLY);
+    if (fd < 0) {
+        fprintf(stderr, "[CRIUgpu] Cannot open %s: %s\n",
+                in_path, strerror(errno));
+        return -1;
+    }
+
+    void* host_buf = malloc(vram_size);
+    if (!host_buf) { close(fd); return -1; }
+
+    ssize_t nread = read(fd, host_buf, vram_size);
+    close(fd);
+
+    if (nread != (ssize_t)vram_size) {
+        fprintf(stderr, "[CRIUgpu] Short read from %s: %zd/%zu\n",
+                in_path, nread, vram_size);
+        free(host_buf);
+        return -1;
+    }
+
+    /* Validate CRC64 before restoring */
+    uint64_t crc = crc64_compute(host_buf, vram_size);
+
+    char crc_path[512];
+    snprintf(crc_path, sizeof(crc_path), "%s.crc64", in_path);
+    FILE* fp = fopen(crc_path, "r");
+    if (fp) {
+        unsigned long long expected_crc;
+        size_t expected_size;
+        if (fscanf(fp, "%llx %zu", &expected_crc, &expected_size) == 2) {
+            if (crc != (uint64_t)expected_crc || vram_size != expected_size) {
+                fprintf(stderr, "[CRIUgpu] CRC64 MISMATCH! Expected %016llx, "
+                        "got %016llx — VRAM CORRUPT\n",
+                        expected_crc, (unsigned long long)crc);
+                fclose(fp);
+                free(host_buf);
+                return -1;
+            }
+            fprintf(stderr, "[CRIUgpu] CRC64 validated: %016llx ✓\n",
+                    (unsigned long long)crc);
+        }
+        fclose(fp);
+    }
+
+    /* Copy host → VRAM */
+    if (g_GpuBackend != GPU_BACKEND_NONE && g_gpuMemcpy) {
+        gpuError_t err = g_gpuMemcpy(device_ptr, host_buf, vram_size,
+                                      gpuMemcpyHostToDevice);
+        if (err != gpuSuccess) {
+            fprintf(stderr, "[CRIUgpu] %s HostToDevice copy failed (err=%d)\n",
+                    g_GpuBackend == GPU_BACKEND_HIP ? "hipMemcpy" : "cudaMemcpy",
+                    err);
+            free(host_buf);
+            return -1;
+        }
+        fprintf(stderr, "[CRIUgpu] %s: %zu bytes restored HostToDevice\n",
+                g_GpuBackend == GPU_BACKEND_HIP ? "HIP" : "CUDA", vram_size);
+    } else {
+        memcpy(device_ptr, host_buf, vram_size);
+        fprintf(stderr, "[CRIUgpu] CPU mode: %zu bytes memcpy'd\n", vram_size);
+    }
+
+    free(host_buf);
+    return 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * criu_checkpoint_shard — Freeze and dump a running inference shard
+ *
+ * Steps:
+ *   1. CRIU dump --leave-stopped (freeze process)
+ *   2. GPU DeviceToHost copy (serialize VRAM via detected backend)
+ *   3. Write VRAM to checkpoint dir as vram.bin + CRC64
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+int criu_checkpoint_shard(const char* checkpoint_dir,
+                           void* vram_ptr, size_t vram_size)
 {
     if (!checkpoint_dir) checkpoint_dir = CRIU_CHECKPOINT_DIR;
 
-    // ── Create checkpoint directory ─────────────────────────────────────
     mkdir(checkpoint_dir, 0700);
 
-    fprintf(stderr, "[CRIUgpu] Starting checkpoint to %s\n", checkpoint_dir);
+    fprintf(stderr, "[CRIUgpu] Starting checkpoint to %s (backend=%s)\n",
+            checkpoint_dir,
+            g_GpuBackend == GPU_BACKEND_HIP  ? "AMD/HIP"  :
+            g_GpuBackend == GPU_BACKEND_CUDA ? "NVIDIA/CUDA" : "CPU");
 
-    // ── Step 1: CRIU dump — freeze the inference process ────────────────
-    // §VIII·3 line 3504
+    /* ── Step 1: CRIU dump ──────────────────────────────────────────── */
     char cmd[512];
     snprintf(cmd, sizeof(cmd),
         "criu dump --leave-stopped --tcp-established -D %s 2>&1",
@@ -94,40 +339,44 @@ int criu_checkpoint_shard(const char* checkpoint_dir)
                 WEXITSTATUS(ret));
         return -1;
     }
-
     fprintf(stderr, "[CRIUgpu] Process frozen via CRIU\n");
 
-    // ── Step 2: Serialize VRAM via cudaMemcpy ───────────────────────────
-    // §VIII·3 lines 3506-3508
-    // NOTE: In production, the GPU device pointers and sizes are obtained
-    // from the eBPF vram_allocated map and the CUDA allocation tracker.
-    // Here we demonstrate the serialization pattern.
+    /* ── Step 2: Serialize VRAM ─────────────────────────────────────── */
+    if (vram_ptr && vram_size > 0) {
+        char vram_path[512];
+        snprintf(vram_path, sizeof(vram_path), "%s/vram.bin", checkpoint_dir);
 
-    fprintf(stderr, "[CRIUgpu] VRAM serialization would occur here — "
-            "GPU pointers from eBPF tracker\n");
+        if (vram_serialize(vram_ptr, vram_size, vram_path) != 0) {
+            fprintf(stderr, "[CRIUgpu] VRAM serialization failed\n");
+            return -1;
+        }
+    } else {
+        fprintf(stderr, "[CRIUgpu] No VRAM pointer — checkpoint is CPU-only\n");
+    }
 
     return 0;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// criu_restore_shard — Restore a shard on the target node
-//
-// Reference: §VIII·3 lines 3514-3521
-//
-// Steps:
-//   1. CRIU restore the process
-//   2. cudaMemcpy the VRAM dump back to device
-//   3. Announce SHARD_READY on #hive-mind
-// ═══════════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════════
+ * criu_restore_shard — Restore a shard on the target node
+ *
+ * Steps:
+ *   1. CRIU restore the process
+ *   2. GPU HostToDevice copy (restore VRAM)
+ *   3. Announce SHARD_READY on #hive-mind
+ * ═══════════════════════════════════════════════════════════════════════════ */
 
-int criu_restore_shard(const char* checkpoint_dir)
+int criu_restore_shard(const char* checkpoint_dir,
+                        void* vram_ptr, size_t vram_size)
 {
     if (!checkpoint_dir) checkpoint_dir = CRIU_CHECKPOINT_DIR;
 
-    fprintf(stderr, "[CRIUgpu] Starting restore from %s\n", checkpoint_dir);
+    fprintf(stderr, "[CRIUgpu] Starting restore from %s (backend=%s)\n",
+            checkpoint_dir,
+            g_GpuBackend == GPU_BACKEND_HIP  ? "AMD/HIP"  :
+            g_GpuBackend == GPU_BACKEND_CUDA ? "NVIDIA/CUDA" : "CPU");
 
-    // ── Step 1: CRIU restore ────────────────────────────────────────────
-    // §VIII·3 line 3515
+    /* ── Step 1: CRIU restore ───────────────────────────────────────── */
     char cmd[512];
     snprintf(cmd, sizeof(cmd),
         "criu restore --tcp-established -D %s 2>&1",
@@ -139,29 +388,31 @@ int criu_restore_shard(const char* checkpoint_dir)
                 WEXITSTATUS(ret));
         return -1;
     }
-
     fprintf(stderr, "[CRIUgpu] Process restored via CRIU\n");
 
-    // ── Step 2: Restore VRAM ────────────────────────────────────────────
-    // §VIII·3 lines 3517-3518
-    // cudaMemcpy(device_ptr, vram.bin contents, size, HostToDevice)
-    fprintf(stderr, "[CRIUgpu] VRAM restoration would occur here — "
-            "HostToDevice cudaMemcpy\n");
+    /* ── Step 2: Restore VRAM ───────────────────────────────────────── */
+    if (vram_ptr && vram_size > 0) {
+        char vram_path[512];
+        snprintf(vram_path, sizeof(vram_path), "%s/vram.bin", checkpoint_dir);
+
+        if (vram_restore(vram_ptr, vram_size, vram_path) != 0) {
+            fprintf(stderr, "[CRIUgpu] VRAM restoration failed\n");
+            return -1;
+        }
+    }
 
     return 0;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// criugpu_migrate — Full migration cycle (source side)
-//
-// Reference: §VIII·3 lines 3497-3522
-//
-// Orchestrates the complete migration:
-//   1. Checkpoint shard (CRIU + VRAM dump)
-//   2. Stream checkpoint to target via RDMA
-//   3. Signal target to restore
-//   4. Wait for SHARD_READY confirmation
-// ═══════════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════════
+ * criugpu_migrate — Full migration cycle (source side)
+ *
+ * Orchestrates:
+ *   1. Detect GPU backend (if not already done)
+ *   2. Checkpoint shard (CRIU + VRAM dump)
+ *   3. Stream checkpoint to target via RDMA
+ *   4. Signal target to restore
+ * ═══════════════════════════════════════════════════════════════════════════ */
 
 int criugpu_migrate(int irc_fd, const char* src_node_id,
                      const char* dst_node_id, uint32_t layer_start,
@@ -170,63 +421,97 @@ int criugpu_migrate(int irc_fd, const char* src_node_id,
     fprintf(stderr, "[CRIUgpu] Migration: %s → %s (layers %u-%u)\n",
             src_node_id, dst_node_id, layer_start, layer_end);
 
-    // ── Announce migration on #hive-mind ────────────────────────────────
-    // §VIII·3 line 3501
+    /* Ensure backend is detected */
+    if (g_GpuBackend == GPU_BACKEND_NONE && !g_GpuLib) {
+        criugpu_detect_backend();
+    }
+
+    /* Announce migration on #hive-mind */
     char msg[256];
     snprintf(msg, sizeof(msg),
-        "PRIVMSG #hive-mind :SHARD_MIGRATE src=%s dst=%s layers=%u-%u\r\n",
-        src_node_id, dst_node_id, layer_start, layer_end);
+        "PRIVMSG #hive-mind :SHARD_MIGRATE src=%s dst=%s layers=%u-%u "
+        "backend=%s\r\n",
+        src_node_id, dst_node_id, layer_start, layer_end,
+        g_GpuBackend == GPU_BACKEND_HIP  ? "hip"  :
+        g_GpuBackend == GPU_BACKEND_CUDA ? "cuda" : "cpu");
     irc_send(irc_fd, msg);
 
-    // ── Step 1: Checkpoint ──────────────────────────────────────────────
-    if (criu_checkpoint_shard(CRIU_CHECKPOINT_DIR) != 0) {
+    /* ── Step 1: Checkpoint ──────────────────────────────────────────── */
+    /* In production: vram_ptr and vram_size come from the eBPF GPU
+     * monitor's allocation tracker (bpf_gpu_monitor.bpf.c).
+     * For CPU-only mode, we pass NULL and the checkpoint is process-only. */
+    if (criu_checkpoint_shard(CRIU_CHECKPOINT_DIR, NULL, 0) != 0) {
         fprintf(stderr, "[CRIUgpu] Checkpoint failed — aborting migration\n");
         return -1;
     }
 
-    // ── Step 2: RDMA stream checkpoint to target ────────────────────────
-    // §VIII·3 lines 3510-3512
-    // In production: read the checkpoint directory contents into a buffer
-    // and stream via rdma_migrate_shard()
-    fprintf(stderr, "[CRIUgpu] RDMA streaming checkpoint to %s\n",
-            dst_node_id);
+    /* ── Step 2: Read checkpoint into buffer for RDMA ────────────────── */
+    struct stat st;
+    char vram_path[512];
+    snprintf(vram_path, sizeof(vram_path), "%s/vram.bin", CRIU_CHECKPOINT_DIR);
 
-    // ── Step 3: Signal target to restore ────────────────────────────────
+    void* ckpt_data = NULL;
+    size_t ckpt_size = 0;
+
+    if (stat(vram_path, &st) == 0 && st.st_size > 0) {
+        ckpt_size = st.st_size;
+        ckpt_data = malloc(ckpt_size);
+        if (ckpt_data) {
+            int fd = open(vram_path, O_RDONLY);
+            if (fd >= 0) {
+                read(fd, ckpt_data, ckpt_size);
+                close(fd);
+            }
+        }
+    }
+
+    /* ── Step 3: RDMA stream to target ───────────────────────────────── */
+    if (ckpt_data && ckpt_size > 0) {
+        fprintf(stderr, "[CRIUgpu] RDMA streaming %zu bytes to %s\n",
+                ckpt_size, dst_node_id);
+        rdma_migrate_shard(dst_node_id, ckpt_data, ckpt_size);
+        free(ckpt_data);
+    }
+
+    /* ── Step 4: Signal target to restore ────────────────────────────── */
     snprintf(msg, sizeof(msg),
-        "PRIVMSG #hive-mind :CRIU_RESTORE dst=%s layers=%u-%u\r\n",
-        dst_node_id, layer_start, layer_end);
+        "PRIVMSG #hive-mind :CRIU_RESTORE dst=%s layers=%u-%u "
+        "backend=%s\r\n",
+        dst_node_id, layer_start, layer_end,
+        g_GpuBackend == GPU_BACKEND_HIP  ? "hip"  :
+        g_GpuBackend == GPU_BACKEND_CUDA ? "cuda" : "cpu");
     irc_send(irc_fd, msg);
 
     return 0;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// rdma_migrate_shard — RDMA write for checkpoint transfer
-//
-// Reference: §VIII·3 lines 3524-3552
-//
-// This is the low-level RDMA function used by the migration daemon.
-// Wraps rdma_stream_shard() with CRIU-specific error handling.
-// ═══════════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════════
+ * rdma_migrate_shard — RDMA write for checkpoint transfer
+ *
+ * Wraps rdma_stream_shard() with CRIU-specific error handling.
+ * ═══════════════════════════════════════════════════════════════════════════ */
 
-int rdma_migrate_shard(const char* dst_ip, void* checkpoint, size_t size)
+int rdma_migrate_shard(const char* dst_node_id, void* checkpoint, size_t size)
 {
-    if (!dst_ip || !checkpoint || size == 0) return -EINVAL;
+    if (!dst_node_id || !checkpoint || size == 0) return -EINVAL;
 
-    fprintf(stderr, "[CRIUgpu] RDMA migrate %zu bytes to %s\n", size, dst_ip);
+    fprintf(stderr, "[CRIUgpu] RDMA migrate %zu bytes to %s\n",
+            size, dst_node_id);
 
-    // Find the target node in registry
+    /* Find target node in registry */
     HIVE_NODE* target = NULL;
     for (int i = 0; i < MAX_NODES; i++) {
-        if (g_NodeRegistry[i].Active) {
-            // In production: match by IP. For now, use first active node.
+        if (!g_NodeRegistry[i].Active) continue;
+        if (strncmp(g_NodeRegistry[i].NodeId, dst_node_id,
+                     NODE_ID_LEN - 1) == 0) {
             target = &g_NodeRegistry[i];
             break;
         }
     }
 
     if (!target) {
-        fprintf(stderr, "[CRIUgpu] No active target node found\n");
+        fprintf(stderr, "[CRIUgpu] Target node %s not found in registry\n",
+                dst_node_id);
         return -ENOTCONN;
     }
 

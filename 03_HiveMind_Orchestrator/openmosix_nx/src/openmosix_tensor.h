@@ -215,15 +215,16 @@ void kv_shard_append_token(int irc_fd, KV_SHARD* local_shard,
                             float* value_data);
 void kv_shard_evict_oldest(int irc_fd, KV_SHARD* shard, uint32_t evict_count);
 
-// criugpu_daemon.c (HIVE-MOSIX-003)
+// criugpu_daemon.c (HIVE-MOSIX-003) — Multi-vendor GPU migration
+int  criugpu_detect_backend(void);
 int  criugpu_migrate(int irc_fd, const char* src_node_id,
                      const char* dst_node_id, uint32_t layer_start,
                      uint32_t layer_end);
-
-// migrate.c (HIVE-MOSIX-001)
-int  rdma_migrate_shard(const char* dst_ip, void* checkpoint, size_t size);
-int  criu_checkpoint_shard(const char* checkpoint_dir);
-int  criu_restore_shard(const char* checkpoint_dir);
+int  rdma_migrate_shard(const char* dst_node_id, void* checkpoint, size_t size);
+int  criu_checkpoint_shard(const char* checkpoint_dir,
+                            void* vram_ptr, size_t vram_size);
+int  criu_restore_shard(const char* checkpoint_dir,
+                         void* vram_ptr, size_t vram_size);
 
 // rebalance_harmonic.c (HIVE-MOSIX-012)
 // hive_mind_rebalance_harmonic() — declared above
