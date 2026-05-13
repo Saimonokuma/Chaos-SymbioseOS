@@ -47,3 +47,31 @@ actions:
       & (Join-Path $PWD '..\Resources\Write-SymbioseConfig.ps1')
     exeDir: true
     wait: true
+
+  # Step 6: Persist scripts for post-install reconfiguration
+  - !powerShell:
+    command: |
+      $srcDir = Join-Path $PWD '..\Resources'
+      $dstDir = Join-Path $env:ProgramData 'SymbioseOS\Scripts'
+      if (-not (Test-Path $dstDir)) {
+          New-Item -Path $dstDir -ItemType Directory -Force | Out-Null
+      }
+      $scripts = @(
+          'Detect-GPU.ps1',
+          'Detect-NVMe.ps1',
+          'Detect-System.ps1',
+          'Symbiose-Configurator.ps1',
+          'Write-SymbioseConfig.ps1',
+          'Reconfigure-Symbiose.ps1'
+      )
+      foreach ($s in $scripts) {
+          $src = Join-Path $srcDir $s
+          if (Test-Path $src) {
+              Copy-Item $src -Destination $dstDir -Force
+              Write-Host ('[PERSIST] Copied: ' + $s)
+          }
+      }
+      Write-Host ('[PERSIST] Scripts saved to: ' + $dstDir) -ForegroundColor Green
+      Write-Host '[PERSIST] Run Reconfigure-Symbiose.ps1 anytime to change allocation.' -ForegroundColor Green
+    exeDir: true
+    wait: true
