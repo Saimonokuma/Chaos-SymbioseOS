@@ -342,4 +342,8 @@ int dvs_to_delta_frame(void* events, DELTA_FRAME* out);
 void set_dibit(uint8_t* change_map, uint16_t x, uint16_t y, uint8_t value);
 #endif
 
+// hive_mind_glue.c — IRC→LLM Bridge (The Neural Pathway)
+void llm_bridge_forward_to_llm(int irc_fd, const char* user_text);
+int  llm_bridge_query(const char* user_text, char* out_buf, size_t out_size);
+
 #endif /* MULTIMODAL_H */

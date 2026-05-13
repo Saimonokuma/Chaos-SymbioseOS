@@ -160,8 +160,9 @@ void modality_dispatch(MODALITY_TYPE type, const char* msg, void* shm)
 
     switch (type) {
     case MOD_TEXT:
-        // Text is forwarded directly to llama-server — no preprocessing
-        // (handled by the main event loop, not a separate processor)
+        // Text is forwarded to llama-server via the IRC→LLM bridge
+        // (hive_mind_glue.c: llm_bridge_forward_to_llm)
+        llm_bridge_forward_to_llm(g_IrcFd, msg);
         break;
 
     case MOD_IMAGE:
